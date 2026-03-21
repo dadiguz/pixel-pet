@@ -167,6 +167,9 @@ const SH = 8;       // body shade/detail
 const NS = 9;       // nose
 const FC = 10;      // face/belly patch (lighter inner area)
 const TR = 11;      // tear drop (always blue)
+const GD = 12;      // gold (sparkles, halo)
+const OR = 13;      // orange (speed lines)
+const GY = 14;      // gray (fly)
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
 const canvas  = document.getElementById('canvas');
@@ -411,10 +414,7 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       pset(grid, 14, 20, BD); pset(grid, 16, 20, BD); pset(grid, 15, 21, BD);
     }
   } else if (pose === 'dead') {
-    pset(grid,  6, 19, BD); pset(grid,  8, 19, BD);
-    pset(grid,  6, 20, BD); pset(grid,  8, 20, BD); pset(grid,  7, 21, BD);
-    pset(grid, 16, 19, BD); pset(grid, 18, 19, BD);
-    pset(grid, 16, 20, BD); pset(grid, 18, 20, BD); pset(grid, 17, 21, BD);
+    // no feet when dead
   } else {
     pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
     pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
@@ -538,39 +538,56 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid,10,bY-1,SH); pset(grid,14,bY-1,SH);
   }
 
-  // Happy: sparkle/brillito on even frames (star cross shape)
-  if (pose === 'happy' && frame % 2 === 0) {
-    const spX = eyeRX + 2, spY = eyeY - 2;
-    pset(grid, spX,   spY-1, ES);
-    pset(grid, spX-1, spY,   ES); pset(grid, spX, spY, ES); pset(grid, spX+1, spY, ES);
-    pset(grid, spX,   spY+1, ES);
-  }
-
-  // Sad: single blue tear pixel below left eye (always)
-  if (pose === 'sad') {
-    pset(grid, eyeLX, eyeY + 2, TR);
-  }
-
-  // Dead: mosca (fly) orbiting the head
-  if (pose === 'dead') {
-    const flyPositions = [
-      [faceCx + 3, bodyCy - 3],
-      [faceCx + 1, bodyCy - 5],
-      [faceCx - 2, bodyCy - 4],
-      [faceCx - 3, bodyCy - 2],
+  // Happy: gold sparkles that shift position each frame
+  if (pose === 'happy') {
+    const sets = [
+      [[eyeRX+2, eyeY-2], [lArmX-1, armY-2]],
+      [[faceCx+4, bodyCy  ], [eyeLX-2, eyeY-1]],
+      [[eyeRX+3, bodyCy-1], [faceCx-1, earTopY+1]],
+      [[eyeLX-1, eyeY-3], [rArmX+1, armY-2]],
     ];
-    const [fx, fy] = flyPositions[frame];
-    pset(grid, fx-1, fy-1, SH); pset(grid, fx+1, fy-1, SH); // wings
-    pset(grid, fx,   fy,   SH);                               // body
+    for (const [sx, sy] of sets[frame]) {
+      pset(grid, sx,   sy-1, GD);
+      pset(grid, sx-1, sy,   GD); pset(grid, sx, sy, GD); pset(grid, sx+1, sy, GD);
+      pset(grid, sx,   sy+1, GD);
+    }
+  }
+
+  // Sad: blue tear falls from left eye then right eye across 4 frames
+  if (pose === 'sad') {
+    const tearX = frame < 2 ? eyeLX : eyeRX;
+    const tearY = eyeY + 1 + (frame % 2) * 2; // y+1 then y+3
+    pset(grid, tearX, tearY,   TR);
+    pset(grid, tearX, tearY+1, TR);
+  }
+
+  // Dead: gray fly (wings only, no legs) orbiting; gold halo above head
+  if (pose === 'dead') {
+    // Halo
+    const haloY = Math.max(1, earTopY - 2);
+    for (let dx = -3; dx <= 3; dx++) {
+      const dy = dx === 0 ? -1 : dx === -1 || dx === 1 ? -1 : 0;
+      pset(grid, bodyCx + dx, haloY + dy, GD);
+    }
+    // Fly orbiting
+    const flyPos = [
+      [faceCx+4, bodyCy-3],
+      [faceCx+2, bodyCy-5],
+      [faceCx-2, bodyCy-5],
+      [faceCx-4, bodyCy-3],
+    ];
+    const [fx, fy] = flyPos[frame];
+    pset(grid, fx-1, fy, GY); pset(grid, fx+1, fy, GY); // wings
+    pset(grid, fx,   fy+1, GY);                          // body, no legs
   }
 
   // Running: speed lines on all frames
   if (pose === 'running') {
     const motY = bodyCy + Math.round(bodyRy * 0.3);
-    pset(grid, lArmX-2, motY,   SH);
-    pset(grid, lArmX-4, motY+1, SH);
-    pset(grid, lArmX-2, motY+2, SH);
-    pset(grid, lArmX-4, motY+3, SH);
+    pset(grid, lArmX-2, motY,   OR);
+    pset(grid, lArmX-4, motY+1, OR);
+    pset(grid, lArmX-2, motY+2, OR);
+    pset(grid, lArmX-4, motY+3, OR);
   }
 
   return grid;
@@ -597,6 +614,9 @@ function render(grid, palette, targetCtx, scale) {
     [NS]: palette.body,
     [FC]: palette.face,
     [TR]: '#5599ff',
+    [GD]: '#ffcc00',
+    [OR]: '#ff7700',
+    [GY]: '#888888',
   };
 
   targetCtx.fillStyle = palette.bg;
