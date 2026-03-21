@@ -117,6 +117,43 @@
     }
     #btn-download-sheet:hover { background: rgba(170,136,255,0.08); }
 
+    #preview-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .preview-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+    }
+
+    .preview-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-canvas {
+      border: 2px solid #334;
+      image-rendering: pixelated;
+      display: block;
+    }
+
+    .btn-preview {
+      background: transparent;
+      border-color: #aa88ff;
+      color: #aa88ff;
+      padding: 6px 10px;
+      font-size: 0.75rem;
+    }
+    .btn-preview:hover { background: rgba(170,136,255,0.1); }
+    .btn-preview.playing { border-color: #ff8888; color: #ff8888; }
+    .btn-preview.playing:hover { background: rgba(255,136,136,0.1); }
+
     .hint {
       font-size: 0.7rem;
       color: #445;
@@ -140,6 +177,27 @@
     <button id="btn-download">[ Download ]</button>
     <button id="btn-spritesheet">[ Sprite Sheet ]</button>
     <button id="btn-grid">Grid</button>
+  </div>
+
+  <div id="preview-section">
+    <div class="preview-row">
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-happy"></canvas>
+        <button class="btn-preview" id="btn-preview-happy">[ ▶ Happy ]</button>
+      </div>
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-sad"></canvas>
+        <button class="btn-preview" id="btn-preview-sad">[ ▶ Sad ]</button>
+      </div>
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-running"></canvas>
+        <button class="btn-preview" id="btn-preview-running">[ ▶ Running ]</button>
+      </div>
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-dead"></canvas>
+        <button class="btn-preview" id="btn-preview-dead">[ ▶ Dead ]</button>
+      </div>
+    </div>
   </div>
 
   <div id="sprite-sheet-section">
@@ -255,11 +313,11 @@ function generateDNA() {
   const bodyCx    = 12;
   const bodyShape = rnd(['round','round','chubby','chubby','slim','pear','tall']);
   let bodyRy, bodyRx;
-  if      (bodyShape === 'round')  { bodyRy = rndInt(6,7); bodyRx = rndInt(bodyRy-1, bodyRy+1); }
-  else if (bodyShape === 'chubby') { bodyRy = rndInt(4,5); bodyRx = rndInt(7,9); }
-  else if (bodyShape === 'slim')   { bodyRy = rndInt(7,9); bodyRx = rndInt(3,5); }
-  else if (bodyShape === 'pear')   { bodyRy = rndInt(6,8); bodyRx = rndInt(bodyRy-1, bodyRy+1); }
-  else                             { bodyRy = rndInt(7,9); bodyRx = rndInt(5,7); }
+  if      (bodyShape === 'round')  { bodyRy = rndInt(6,7); bodyRx = rndInt(5,7); }
+  else if (bodyShape === 'chubby') { bodyRy = 6;           bodyRx = 7; }
+  else if (bodyShape === 'slim')   { bodyRy = 7;           bodyRx = rndInt(3,4); }
+  else if (bodyShape === 'pear')   { bodyRy = rndInt(6,7); bodyRx = rndInt(5,7); }
+  else                             { bodyRy = 7;           bodyRx = rndInt(5,6); }
 
   const bodyCy  = 18 - bodyRy;
   const earTopY = 18 - 2 * bodyRy;
@@ -581,13 +639,24 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid, fx,   fy+1, GY);                          // body, no legs
   }
 
-  // Running: speed lines on all frames
+  // Running: horizontal speed lines behind the body, pulsing per frame
   if (pose === 'running') {
-    const motY = bodyCy + Math.round(bodyRy * 0.3);
-    pset(grid, lArmX-2, motY,   OR);
-    pset(grid, lArmX-4, motY+1, OR);
-    pset(grid, lArmX-2, motY+2, OR);
-    pset(grid, lArmX-4, motY+3, OR);
+    const baseX = lArmX - 1;
+    const lineYs = [bodyCy - 1, bodyCy + 1, bodyCy + 3];
+    // Alternating long/short pattern creates a "streaming past" feel
+    const lenTable = [
+      [3, 1, 3],  // frame 0: long · short · long
+      [1, 3, 1],  // frame 1: short · long · short
+      [3, 1, 3],  // frame 2: long · short · long
+      [1, 3, 1],  // frame 3: short · long · short
+    ];
+    const xShift = frame % 2;  // slight horizontal slide per frame
+    lineYs.forEach((ly, i) => {
+      const len = lenTable[frame][i];
+      for (let dx = 0; dx < len; dx++) {
+        pset(grid, baseX - xShift - dx, ly, OR);
+      }
+    });
   }
 
   return grid;
@@ -650,12 +719,15 @@ function drawGrid(alpha = 0.1) {
 }
 
 function generate() {
+  stopAllPreviews();
   const { grid, palette, dna } = generateCharacter();
   const name = randomName();
   state = { grid, palette, name, dna };
   render(grid, palette, ctx, S);
   document.getElementById('pet-name').textContent = name;
   document.getElementById('sprite-sheet-section').style.display = 'none';
+  document.getElementById('preview-section').style.display = 'flex';
+  initPreviewCanvases();
 }
 
 // ─── Sprite Sheet ─────────────────────────────────────────────────────────────
@@ -716,6 +788,74 @@ function generateSpriteSheet() {
 
   document.getElementById('sprite-sheet-section').style.display = 'flex';
 }
+
+// ─── Preview animations ───────────────────────────────────────────────────────
+const PREVIEW_SCALE = 4;          // 96×96 per canvas
+const PREVIEW_FPS   = 6;          // frames per second
+const PREVIEW_POSES = [
+  { pose: 'happy',   id: 'happy'   },
+  { pose: 'sad',     id: 'sad'     },
+  { pose: 'running', id: 'running' },
+  { pose: 'dead',    id: 'dead'    },
+];
+
+const previewTimers = {};  // pose → intervalId | null
+
+function startPreview(pose) {
+  if (previewTimers[pose] != null) return; // already running
+  const cvs = document.getElementById(`preview-canvas-${pose}`);
+  cvs.width = cvs.height = G * PREVIEW_SCALE;
+  let frame = 0;
+  previewTimers[pose] = setInterval(() => {
+    if (!state.dna) return;
+    const grid = buildCharacterGrid(state.dna, pose, frame);
+    render(grid, state.dna.palette, cvs.getContext('2d'), PREVIEW_SCALE);
+    frame = (frame + 1) % 4;
+  }, 1000 / PREVIEW_FPS);
+}
+
+function stopPreview(pose) {
+  if (previewTimers[pose] == null) return;
+  clearInterval(previewTimers[pose]);
+  previewTimers[pose] = null;
+}
+
+function stopAllPreviews() {
+  PREVIEW_POSES.forEach(({ pose }) => {
+    stopPreview(pose);
+    const btn = document.getElementById(`btn-preview-${pose}`);
+    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead' };
+    btn.textContent = `[ ▶ ${labels[pose]} ]`;
+    btn.classList.remove('playing');
+  });
+}
+
+function initPreviewCanvases() {
+  if (!state.dna) return;
+  PREVIEW_POSES.forEach(({ pose }) => {
+    const cvs = document.getElementById(`preview-canvas-${pose}`);
+    cvs.width = cvs.height = G * PREVIEW_SCALE;
+    const grid = buildCharacterGrid(state.dna, pose, 0);
+    render(grid, state.dna.palette, cvs.getContext('2d'), PREVIEW_SCALE);
+  });
+}
+
+PREVIEW_POSES.forEach(({ pose }) => {
+  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead' };
+  document.getElementById(`btn-preview-${pose}`).addEventListener('click', () => {
+    const btn = document.getElementById(`btn-preview-${pose}`);
+    const isPlaying = previewTimers[pose] != null;
+    if (isPlaying) {
+      stopPreview(pose);
+      btn.textContent = `[ ▶ ${labels[pose]} ]`;
+      btn.classList.remove('playing');
+    } else {
+      startPreview(pose);
+      btn.textContent = `[ ■ ${labels[pose]} ]`;
+      btn.classList.add('playing');
+    }
+  });
+});
 
 // ─── Grid toggle ──────────────────────────────────────────────────────────────
 let gridVisible = false;
