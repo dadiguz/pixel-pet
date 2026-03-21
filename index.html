@@ -291,20 +291,34 @@ function addOutline(grid) {
   for (const [x, y] of edges) grid[y][x] = OL;
 }
 
-// ─── Color palettes ───────────────────────────────────────────────────────────
+// ─── Color palettes — based on Refactoring UI color scales ────────────────────
 const PALETTES = [
-  { name: 'classic',   bg: '#ffffff', body: '#111111', shade: '#888888', face: '#eeeeee', eyeW: '#ffffff', eyeP: '#111111', cheek: '#ffaaaa' },
-  { name: 'cream',     bg: '#fdf5dc', body: '#2a1800', shade: '#b07828', face: '#fff8e8', eyeW: '#fdf5dc', eyeP: '#2a1800', cheek: '#ffbbcc' },
-  { name: 'bluebell',  bg: '#eef4ff', body: '#1a2e99', shade: '#6688ee', face: '#ddeeff', eyeW: '#eef4ff', eyeP: '#1a2e99', cheek: '#99bbff' },
-  { name: 'cherry',    bg: '#fff0f0', body: '#8a1030', shade: '#ee6688', face: '#ffe8ee', eyeW: '#fff0f0', eyeP: '#8a1030', cheek: '#ffaacc' },
-  { name: 'forest',    bg: '#eef6ee', body: '#1a3a1a', shade: '#5a9a4a', face: '#ddf0dd', eyeW: '#eef6ee', eyeP: '#1a3a1a', cheek: '#99ddaa' },
-  { name: 'dusk',      bg: '#1a1428', body: '#e0ccff', shade: '#aa77ee', face: '#2a2040', eyeW: '#1a1428', eyeP: '#e0ccff', cheek: '#cc88ff' },
-  { name: 'tangerine', bg: '#fff8ee', body: '#cc4400', shade: '#ff9933', face: '#fff0dd', eyeW: '#fff8ee', eyeP: '#cc4400', cheek: '#ffcc88' },
-  { name: 'slate',     bg: '#f0f2f5', body: '#223344', shade: '#7799bb', face: '#e0e8f0', eyeW: '#f0f2f5', eyeP: '#223344', cheek: '#aabbcc' },
-  { name: 'lemon',     bg: '#fffff0', body: '#444400', shade: '#aaaa22', face: '#fffff8', eyeW: '#fffff0', eyeP: '#444400', cheek: '#ffdd88' },
-  { name: 'rose',      bg: '#fff5f8', body: '#660044', shade: '#cc4488', face: '#ffeef5', eyeW: '#fff5f8', eyeP: '#660044', cheek: '#ff99bb' },
-  { name: 'mint',      bg: '#f0fff8', body: '#004433', shade: '#44aa77', face: '#e0fff4', eyeW: '#f0fff8', eyeP: '#004433', cheek: '#88ffcc' },
-  { name: 'storm',     bg: '#1a1a2a', body: '#00ddff', shade: '#0088bb', face: '#0a1a22', eyeW: '#1a1a2a', eyeP: '#00ddff', cheek: '#88eeff' },
+  // Cyan (Palette 1 primary)
+  { name: 'seafoam',   body: '#044E54', shade: '#2CB1BC', face: '#BEF8FD', eyeP: '#044E54', cheek: '#F191C1' },
+  // Blue (Palette 2 primary)
+  { name: 'ocean',     body: '#003E6B', shade: '#2680C2', face: '#DCEEFB', eyeP: '#003E6B', cheek: '#FAB38B' },
+  // Purple (Palette 3 primary)
+  { name: 'amethyst',  body: '#240754', shade: '#5D55FA', face: '#E6E6FF', eyeP: '#240754', cheek: '#DA127D' },
+  // Teal (Palette 4 primary)
+  { name: 'jade',      body: '#014D40', shade: '#3EBD93', face: '#C6F7E2', eyeP: '#014D40', cheek: '#F9703E' },
+  // Blue Grey (Palette 5 neutrals)
+  { name: 'slate',     body: '#102A43', shade: '#627D98', face: '#D9E2EC', eyeP: '#102A43', cheek: '#EF8E58' },
+  // Red (Palette 6 primary)
+  { name: 'cherry',    body: '#610404', shade: '#D64545', face: '#FACDCD', eyeP: '#610404', cheek: '#F7D070' },
+  // Yellow (Palette 2/6 supporting)
+  { name: 'honey',     body: '#513C06', shade: '#CB6E17', face: '#FCEFC7', eyeP: '#513C06', cheek: '#DA127D' },
+  // Indigo (Palette 1 supporting)
+  { name: 'indigo',    body: '#19216C', shade: '#4C63B6', face: '#BED0F7', eyeP: '#19216C', cheek: '#E668A7' },
+  // Green
+  { name: 'meadow',    body: '#05400A', shade: '#3F9142', face: '#C1EAC5', eyeP: '#05400A', cheek: '#DA4A91' },
+  // Pink (Palette 1 supporting)
+  { name: 'berry',     body: '#5C0B33', shade: '#AD2167', face: '#FFE0F0', eyeP: '#5C0B33', cheek: '#F9DA8B' },
+  // Orange/Warm
+  { name: 'sunset',    body: '#572508', shade: '#C65D21', face: '#FFD3BA', eyeP: '#572508', cheek: '#DA4A91' },
+  // Vivid Blue (Palette 8)
+  { name: 'sapphire',  body: '#002159', shade: '#2186EB', face: '#B6E0FE', eyeP: '#002159', cheek: '#F191C1' },
+  // Charcoal (Warm Grey neutrals)
+  { name: 'ink',       body: '#27241D', shade: '#625D52', face: '#FAF9F7', eyeP: '#27241D', cheek: '#DA4A91' },
 ];
 
 // ─── Name generator ───────────────────────────────────────────────────────────
@@ -512,7 +526,7 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   addOutline(grid);
 
   // ─ Face ──────────────────────────────────────────────────────────────────────
-  const faceCx      = bodyCx + 1;
+  const faceCx      = bodyCx - 1;
   const muzzleBaseY = bodyCy + Math.round(bodyRy * 0.2);
 
   // Face patch: centered between eyes and mouth, tight oval
@@ -705,22 +719,21 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     }
   }
 
-  // Running: horizontal speed lines behind the body, pulsing per frame
+  // Running: horizontal speed lines behind body (right side — character faces left)
   if (pose === 'running') {
-    const baseX = lArmX - 1;
+    const baseX = rArmX + 1;
     const lineYs = [bodyCy - 1, bodyCy + 1, bodyCy + 3];
-    // Alternating long/short pattern creates a "streaming past" feel
     const lenTable = [
-      [3, 1, 3],  // frame 0: long · short · long
-      [1, 3, 1],  // frame 1: short · long · short
-      [3, 1, 3],  // frame 2: long · short · long
-      [1, 3, 1],  // frame 3: short · long · short
+      [3, 1, 3],
+      [1, 3, 1],
+      [3, 1, 3],
+      [1, 3, 1],
     ];
-    const xShift = frame % 2;  // slight horizontal slide per frame
+    const xShift = frame % 2;
     lineYs.forEach((ly, i) => {
       const len = lenTable[frame][i];
       for (let dx = 0; dx < len; dx++) {
-        pset(grid, baseX - xShift - dx, ly, OR);
+        pset(grid, baseX + xShift + dx, ly, OR);
       }
     });
   }
