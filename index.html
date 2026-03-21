@@ -197,6 +197,10 @@
         <canvas class="preview-canvas" id="preview-canvas-dead"></canvas>
         <button class="btn-preview" id="btn-preview-dead">[ ▶ Dead ]</button>
       </div>
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-jump"></canvas>
+        <button class="btn-preview" id="btn-preview-jump">[ ▶ Jump ]</button>
+      </div>
     </div>
   </div>
 
@@ -431,6 +435,20 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
         pset(grid, lArmX, armY-2, BD); pset(grid, lArmX, armY-1, BD); // left arm forward/high
         pset(grid, rArmX, armY+1, BD); pset(grid, rArmX, armY+2, BD); // right arm back/low
       }
+    } else if (pose === 'jump') {
+      if (frame === 0) {       // crouch: arms low, winding up
+        pset(grid, lArmX, armY+2, BD); pset(grid, lArmX, armY+3, BD);
+        pset(grid, rArmX, armY+2, BD); pset(grid, rArmX, armY+3, BD);
+      } else if (frame === 1) { // launch: arms spread wide + angled up
+        pset(grid, lArmX-1, armY,   BD); pset(grid, lArmX-1, armY-1, BD);
+        pset(grid, rArmX+1, armY,   BD); pset(grid, rArmX+1, armY-1, BD);
+      } else if (frame === 2) { // peak: arms fully raised
+        pset(grid, lArmX, armY-2, BD); pset(grid, lArmX, armY-1, BD);
+        pset(grid, rArmX, armY-2, BD); pset(grid, rArmX, armY-1, BD);
+      } else {                  // landing: arms out and low (impact)
+        pset(grid, lArmX-1, armY+1, BD); pset(grid, lArmX, armY+2, BD);
+        pset(grid, rArmX+1, armY+1, BD); pset(grid, rArmX, armY+2, BD);
+      }
     } else if (pose === 'dead') {
       pset(grid, lArmX-1, armY, BD); pset(grid, lArmX, armY, BD); pset(grid, lArmX, armY+1, BD);
       pset(grid, rArmX+1, armY, BD); pset(grid, rArmX, armY, BD); pset(grid, rArmX, armY+1, BD);
@@ -471,6 +489,15 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       pset(grid, 14, 19, BD); pset(grid, 16, 19, BD);
       pset(grid, 14, 20, BD); pset(grid, 16, 20, BD); pset(grid, 15, 21, BD);
     }
+  } else if (pose === 'jump') {
+    if (frame === 0 || frame === 3) {
+      // on ground: normal feet
+      pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
+      pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
+      pset(grid, 14, 19, BD); pset(grid, 16, 19, BD);
+      pset(grid, 14, 20, BD); pset(grid, 16, 20, BD); pset(grid, 15, 21, BD);
+    }
+    // frames 1-2: in the air — no feet at ground level
   } else if (pose === 'dead') {
     // no feet when dead
   } else {
@@ -487,7 +514,13 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   const faceCx      = bodyCx + 1;
   const muzzleBaseY = bodyCy + Math.round(bodyRy * 0.2);
 
-  fillEllipse(grid, faceCx, bodyCy + 1, bodyRx * 0.6, bodyRy * 0.65, FC);
+  // Face patch: centered between eyes and mouth, tight oval
+  const eyeY   = bodyCy - Math.round(bodyRy * 0.15);
+  const mouthY = bodyCy + Math.round(bodyRy * 0.35);
+  const facePatchCy = Math.round((eyeY + mouthY) / 2);
+  const faceRy = (mouthY - eyeY) / 2 + 1;
+  const faceRx = Math.max(faceRy * 0.65, Math.min(bodyRx * 0.52, faceRy * 0.9));
+  fillEllipse(grid, faceCx, facePatchCy, faceRx, faceRy, FC);
 
   if (animalType === 'frog') {
     const muzzL = Math.round(bodyCx - bodyRx) - 3;
@@ -503,7 +536,6 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   }
 
   // Eyes
-  const eyeY  = bodyCy - Math.round(bodyRy * 0.15);
   const eyeLX = faceCx - dna.eyeSp;
   const eyeRX = faceCx + dna.eyeSp;
 
@@ -639,6 +671,24 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid, fx,   fy+1, GY);                          // body, no legs
   }
 
+  // Jump: shadow under body when in air; dust on landing
+  if (pose === 'jump') {
+    if (frame === 1 || frame === 2) {
+      // shadow ellipse on the ground while in air
+      pset(grid, bodyCx-1, 22, SH); pset(grid, bodyCx, 22, SH); pset(grid, bodyCx+1, 22, SH);
+    }
+    if (frame === 2) {
+      // gold sparkles at peak of jump
+      pset(grid, lArmX-1, armY-3, GD); pset(grid, lArmX,   armY-4, GD);
+      pset(grid, rArmX+1, armY-3, GD); pset(grid, rArmX,   armY-4, GD);
+    }
+    if (frame === 3) {
+      // dust particles on landing
+      pset(grid,  7, 22, SH); pset(grid,  9, 22, SH);
+      pset(grid, 15, 22, SH); pset(grid, 17, 22, SH);
+    }
+  }
+
   // Running: horizontal speed lines behind the body, pulsing per frame
   if (pose === 'running') {
     const baseX = lArmX - 1;
@@ -739,28 +789,31 @@ function generateSpriteSheet() {
     { label: 'HAPPY',   pose: 'happy',   frames: 4 },
     { label: 'SAD',     pose: 'sad',     frames: 4 },
     { label: 'RUNNING', pose: 'running', frames: 4 },
+    { label: 'JUMP',    pose: 'jump',    frames: 4 },
     { label: 'DEAD',    pose: 'dead',    frames: 4 },
   ];
 
-  const FSCALE   = 4;
-  const CELL     = G * FSCALE;  // 96px per frame
-  const LABEL_H  = 16;
+  const FSCALE    = 4;
+  const CELL      = G * FSCALE;  // 96px per frame
+  const LABEL_H   = 16;
   const GROUP_GAP = 10;
+  const COLS      = 3;
   // Each group: 4 frames arranged 2×2
-  const GROUP_W  = 2 * CELL;    // 192px
-  const GROUP_H  = 2 * CELL;    // 192px
+  const GROUP_W   = 2 * CELL;    // 192px
+  const GROUP_H   = 2 * CELL;    // 192px
+  const ROWS      = Math.ceil(POSES.length / COLS);
 
   const sc = document.getElementById('sprite-sheet');
-  sc.width  = 2 * GROUP_W + GROUP_GAP;
-  sc.height = 2 * (LABEL_H + GROUP_H) + GROUP_GAP;
+  sc.width  = COLS * GROUP_W + (COLS - 1) * GROUP_GAP;
+  sc.height = ROWS * (LABEL_H + GROUP_H) + (ROWS - 1) * GROUP_GAP;
   const sCtx = sc.getContext('2d');
 
   sCtx.fillStyle = '#0d0d1a';
   sCtx.fillRect(0, 0, sc.width, sc.height);
 
   POSES.forEach(({ label, pose, frames }, i) => {
-    const col    = i % 2;
-    const row    = Math.floor(i / 2);
+    const col    = i % COLS;
+    const row    = Math.floor(i / COLS);
     const groupX = col * (GROUP_W + GROUP_GAP);
     const groupY = row * (LABEL_H + GROUP_H + GROUP_GAP);
 
@@ -797,6 +850,7 @@ const PREVIEW_POSES = [
   { pose: 'sad',     id: 'sad'     },
   { pose: 'running', id: 'running' },
   { pose: 'dead',    id: 'dead'    },
+  { pose: 'jump',    id: 'jump'    },
 ];
 
 const previewTimers = {};  // pose → intervalId | null
@@ -824,7 +878,7 @@ function stopAllPreviews() {
   PREVIEW_POSES.forEach(({ pose }) => {
     stopPreview(pose);
     const btn = document.getElementById(`btn-preview-${pose}`);
-    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead' };
+    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump' };
     btn.textContent = `[ ▶ ${labels[pose]} ]`;
     btn.classList.remove('playing');
   });
@@ -841,7 +895,7 @@ function initPreviewCanvases() {
 }
 
 PREVIEW_POSES.forEach(({ pose }) => {
-  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead' };
+  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump' };
   document.getElementById(`btn-preview-${pose}`).addEventListener('click', () => {
     const btn = document.getElementById(`btn-preview-${pose}`);
     const isPlaying = previewTimers[pose] != null;
