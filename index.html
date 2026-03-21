@@ -95,6 +95,28 @@
     #btn-grid:hover { border-color: #88ffcc; color: #88ffcc; }
     #btn-grid.active { border-color: #88ffcc; color: #88ffcc; }
 
+    #btn-spritesheet {
+      background: transparent;
+      border-color: #aa88ff;
+      color: #aa88ff;
+    }
+    #btn-spritesheet:hover { background: rgba(170,136,255,0.08); }
+
+    #sprite-sheet-section {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    #sprite-sheet { border: 2px solid #334; image-rendering: pixelated; }
+
+    #btn-download-sheet {
+      background: transparent;
+      border-color: #aa88ff;
+      color: #aa88ff;
+    }
+    #btn-download-sheet:hover { background: rgba(170,136,255,0.08); }
+
     .hint {
       font-size: 0.7rem;
       color: #445;
@@ -116,7 +138,13 @@
   <div class="buttons">
     <button id="btn-generate">[ Generate ]</button>
     <button id="btn-download">[ Download ]</button>
+    <button id="btn-spritesheet">[ Sprite Sheet ]</button>
     <button id="btn-grid">Grid</button>
+  </div>
+
+  <div id="sprite-sheet-section">
+    <canvas id="sprite-sheet"></canvas>
+    <button id="btn-download-sheet">[ Download Sheet ]</button>
   </div>
 
   <div class="hint">24 × 24 pixel art · tamagotchi style</div>
@@ -138,6 +166,7 @@ const CK = 7;       // cheek blush
 const SH = 8;       // body shade/detail
 const NS = 9;       // nose
 const FC = 10;      // face/belly patch (lighter inner area)
+const TR = 11;      // tear drop (always blue)
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
 const canvas  = document.getElementById('canvas');
@@ -218,58 +247,79 @@ const NAME_PRE = ['Mame','Kuro','Hoshi','Mochi','Puchi','Yuki','Tama','Hana','So
 const NAME_SUF = ['tchi','chi','ko','ru','pi','pu','maru','kichi','bon','nyan','pyon','rin','tan'];
 const randomName = () => rnd(NAME_PRE) + rnd(NAME_SUF);
 
-// ─── Character generator ──────────────────────────────────────────────────────
-function generateCharacter() {
-  const grid = Array.from({ length: G }, () => Array(G).fill(E));
-
-  // ─ Body: bottom ALWAYS at y=18 → ankles y=19 → feet y=20-21 (animation-ready)
-  const bodyCx = 12;
-
-  // Body shape variety
+// ─── Character DNA ────────────────────────────────────────────────────────────
+function generateDNA() {
+  const bodyCx    = 12;
   const bodyShape = rnd(['round','round','chubby','chubby','slim','pear','tall']);
   let bodyRy, bodyRx;
-  if (bodyShape === 'round')  { bodyRy = rndInt(6,7);  bodyRx = rndInt(bodyRy-1, bodyRy+1); }
-  else if (bodyShape === 'chubby') { bodyRy = rndInt(4,5);  bodyRx = rndInt(7,9); }
-  else if (bodyShape === 'slim')   { bodyRy = rndInt(7,9);  bodyRx = rndInt(3,5); }
-  else if (bodyShape === 'pear')   { bodyRy = rndInt(6,8);  bodyRx = rndInt(bodyRy-1, bodyRy+1); }
-  else /* tall */                  { bodyRy = rndInt(7,9);  bodyRx = rndInt(5,7); }
+  if      (bodyShape === 'round')  { bodyRy = rndInt(6,7); bodyRx = rndInt(bodyRy-1, bodyRy+1); }
+  else if (bodyShape === 'chubby') { bodyRy = rndInt(4,5); bodyRx = rndInt(7,9); }
+  else if (bodyShape === 'slim')   { bodyRy = rndInt(7,9); bodyRx = rndInt(3,5); }
+  else if (bodyShape === 'pear')   { bodyRy = rndInt(6,8); bodyRx = rndInt(bodyRy-1, bodyRy+1); }
+  else                             { bodyRy = rndInt(7,9); bodyRx = rndInt(5,7); }
 
-  const bodyCy = 18 - bodyRy;
+  const bodyCy  = 18 - bodyRy;
   const earTopY = 18 - 2 * bodyRy;
 
-  if (bodyShape === 'pear') {
-    // Upper half narrower, lower half wider
-    fillEllipse(grid, bodyCx, bodyCy,                          bodyRx - 1, Math.round(bodyRy * 0.55), BD);
-    fillEllipse(grid, bodyCx, bodyCy + Math.round(bodyRy*0.35), bodyRx + 1, Math.round(bodyRy * 0.7),  BD);
-  } else {
-    fillEllipse(grid, bodyCx, bodyCy, bodyRx, bodyRy, BD);
-  }
-
-  // ─ Animal type (limited by earTopY) ────────────────────────────────────────
   const animalType = earTopY >= 5
     ? rnd(['bunny','bunny','cat','cat','bear','bear','dog','mouse','smooth'])
     : earTopY >= 3
     ? rnd(['bear','bear','dog','dog','frog','duck','smooth'])
     : rnd(['frog','frog','dog','duck','smooth']);
 
-  // ─ Ears ─────────────────────────────────────────────────────────────────────
-  const earSp = Math.round(bodyRx * 0.5);
-  const lEarX  = bodyCx - earSp;
-  const rEarX  = bodyCx + earSp;
+  const earSp      = Math.round(bodyRx * 0.5);
+  const bunnyEarH  = animalType === 'bunny' ? Math.max(1, Math.min(rndInt(3,5), earTopY-1)) : 0;
+  const bearEarR   = animalType === 'bear'  ? (earTopY >= 4 ? 2.2 : 1.6) : 0;
+  const armStyle   = rndInt(0, 2);
+  const eyeSp      = animalType === 'frog' ? rndInt(3,4) : rndInt(2,3);
+  const eyeStyle   = rndInt(0, 3);
+  const hasMuzzle  = animalType !== 'frog' && chance(0.6);
+  const mouthStyle = rndInt(0, 3);
+  const hasNose    = !hasMuzzle && animalType !== 'frog' && chance(0.4);
+  const hasCheeks  = chance(0.6);
+  const hasMarking = chance(0.3);
+  const markingStyle = rndInt(0, 1);
+  const hasBow     = chance(0.2) && earTopY >= 4 && animalType !== 'dog';
+  const hasTail    = chance(0.2);
+  const tailOffset = rndInt(0, 3);
+
+  return {
+    bodyCx, bodyShape, bodyRy, bodyRx, bodyCy, earTopY,
+    animalType, earSp, bunnyEarH, bearEarR,
+    armStyle, eyeSp, eyeStyle, hasMuzzle, mouthStyle, hasNose,
+    hasCheeks, hasMarking, markingStyle, hasBow, hasTail, tailOffset,
+    palette: rnd(PALETTES)
+  };
+}
+
+// ─── Character builder — works for all poses ──────────────────────────────────
+function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
+  const grid = Array.from({ length: G }, () => Array(G).fill(E));
+  const { bodyCx, bodyShape, bodyRy, bodyRx, bodyCy, earTopY, animalType,
+          earSp, bunnyEarH, bearEarR } = dna;
+
+  // ─ Body ──────────────────────────────────────────────────────────────────────
+  if (bodyShape === 'pear') {
+    fillEllipse(grid, bodyCx, bodyCy,                             bodyRx - 1, Math.round(bodyRy * 0.55), BD);
+    fillEllipse(grid, bodyCx, bodyCy + Math.round(bodyRy * 0.35), bodyRx + 1, Math.round(bodyRy * 0.7),  BD);
+  } else {
+    fillEllipse(grid, bodyCx, bodyCy, bodyRx, bodyRy, BD);
+  }
+
+  // ─ Ears / animal features ────────────────────────────────────────────────────
+  const lEarX = bodyCx - earSp;
+  const rEarX = bodyCx + earSp;
 
   if (animalType === 'bunny') {
-    const h = Math.min(rndInt(3, 5), earTopY - 1);
-    fillEllipse(grid, lEarX, earTopY - h, 1.5, h, BD);
-    fillEllipse(grid, rEarX, earTopY - h, 1.5, h, BD);
+    fillEllipse(grid, lEarX, earTopY - bunnyEarH, 1.5, bunnyEarH, BD);
+    fillEllipse(grid, rEarX, earTopY - bunnyEarH, 1.5, bunnyEarH, BD);
   } else if (animalType === 'cat') {
-    pset(grid, lEarX,     earTopY,     BD); pset(grid, lEarX,     earTopY-1, BD); pset(grid, lEarX-1, Math.max(0,earTopY-2), BD);
-    pset(grid, rEarX,     earTopY,     BD); pset(grid, rEarX,     earTopY-1, BD); pset(grid, rEarX+1, Math.max(0,earTopY-2), BD);
+    pset(grid, lEarX, earTopY, BD); pset(grid, lEarX, earTopY-1, BD); pset(grid, lEarX-1, Math.max(0,earTopY-2), BD);
+    pset(grid, rEarX, earTopY, BD); pset(grid, rEarX, earTopY-1, BD); pset(grid, rEarX+1, Math.max(0,earTopY-2), BD);
   } else if (animalType === 'bear') {
-    const r = earTopY >= 4 ? 2.2 : 1.6;
-    fillEllipse(grid, lEarX, earTopY, r, r, BD);
-    fillEllipse(grid, rEarX, earTopY, r, r, BD);
+    fillEllipse(grid, lEarX, earTopY, bearEarR, bearEarR, BD);
+    fillEllipse(grid, rEarX, earTopY, bearEarR, bearEarR, BD);
   } else if (animalType === 'dog') {
-    // Floppy ears hang down the sides
     for (let i = 0; i <= 6; i++) {
       pset(grid, lEarX - 1, bodyCy - 2 + i, BD);
       pset(grid, rEarX + 1, bodyCy - 2 + i, BD);
@@ -278,133 +328,188 @@ function generateCharacter() {
     fillEllipse(grid, lEarX - 1, earTopY + 1, 2.3, 2.3, BD);
     fillEllipse(grid, rEarX + 1, earTopY + 1, 2.3, 2.3, BD);
   } else if (animalType === 'frog') {
-    // Wide flat muzzle bar extending LEFT (3/4 frog profile) — draw BEFORE outline
-    const muzzY  = bodyCy + Math.round(bodyRy * 0.1);
-    const muzzL  = Math.round(bodyCx - bodyRx) - 3;
-    const muzzR  = bodyCx - 1;
+    const muzzY = bodyCy + Math.round(bodyRy * 0.1);
+    const muzzL = Math.round(bodyCx - bodyRx) - 3;
+    const muzzR = bodyCx - 1;
     for (let y = muzzY - 1; y <= muzzY + 2; y++)
       for (let x = muzzL; x <= muzzR; x++) pset(grid, x, y, BD);
   } else if (animalType === 'duck') {
-    // Wing lines on left side (3 horizontal stripes, the duck tell)
     const wY = bodyCy + Math.round(bodyRy * 0.1);
     const wX = Math.round(bodyCx - bodyRx) - 1;
     for (let i = 0; i < 3; i++) {
-      pset(grid, wX, wY + i, BD); pset(grid, wX-1, wY + i, BD); pset(grid, wX-2, wY + i, BD);
+      pset(grid, wX, wY+i, BD); pset(grid, wX-1, wY+i, BD); pset(grid, wX-2, wY+i, BD);
     }
   }
 
-  // ─ 3/4 view: left arm always visible, right arm partial ─────────────────────
-  const armY   = bodyCy + Math.round(bodyRy * 0.1);
-  const lArmX  = Math.round(bodyCx - bodyRx) - 1;
-  const rArmX  = Math.round(bodyCx + bodyRx);
+  // ─ Arms ──────────────────────────────────────────────────────────────────────
+  const armY  = bodyCy + Math.round(bodyRy * 0.1);
+  const lArmX = Math.round(bodyCx - bodyRx) - 1;
+  const rArmX = Math.round(bodyCx + bodyRx);
 
-  if (animalType !== 'duck') { // duck uses wing lines instead
-    rnd([
-      () => { pset(grid, lArmX, armY, BD); pset(grid, lArmX, armY+1, BD); },  // stub down
-      () => { pset(grid, lArmX, armY-1, BD); pset(grid, lArmX, armY, BD); },  // raised
-      () => { pset(grid, lArmX, armY, BD); pset(grid, lArmX-1, armY, BD); },  // L-out
-    ])();
-    pset(grid, rArmX, armY, BD); pset(grid, rArmX, armY+1, BD);
+  if (animalType !== 'duck') {
+    if (pose === 'happy') {
+      // bounce: even frames arms high, odd frames arms medium
+      const hi = frame % 2 === 0;
+      pset(grid, lArmX, hi ? armY-2 : armY-1, BD); pset(grid, lArmX, hi ? armY-1 : armY, BD);
+      pset(grid, rArmX, hi ? armY-2 : armY-1, BD); pset(grid, rArmX, hi ? armY-1 : armY, BD);
+    } else if (pose === 'sad') {
+      // Arms droop further each pair of frames; frame 3 one arm slightly raised (wiping tear)
+      const droop = frame <= 1 ? 1 : 2;
+      pset(grid, lArmX, armY+droop, BD); pset(grid, lArmX, armY+droop+1, BD);
+      if (frame === 3) {
+        pset(grid, rArmX, armY-1, BD); pset(grid, rArmX, armY, BD); // wiping gesture
+      } else {
+        pset(grid, rArmX, armY+droop, BD); pset(grid, rArmX, armY+droop+1, BD);
+      }
+    } else if (pose === 'running') {
+      // Arms pump hard: opposite to raised leg
+      if (frame % 2 === 0) { // left foot raised → right arm forward/up
+        pset(grid, lArmX, armY+1, BD); pset(grid, lArmX, armY+2, BD); // left arm back/low
+        pset(grid, rArmX, armY-2, BD); pset(grid, rArmX, armY-1, BD); // right arm forward/high
+      } else {               // right foot raised → left arm forward/up
+        pset(grid, lArmX, armY-2, BD); pset(grid, lArmX, armY-1, BD); // left arm forward/high
+        pset(grid, rArmX, armY+1, BD); pset(grid, rArmX, armY+2, BD); // right arm back/low
+      }
+    } else if (pose === 'dead') {
+      pset(grid, lArmX-1, armY, BD); pset(grid, lArmX, armY, BD); pset(grid, lArmX, armY+1, BD);
+      pset(grid, rArmX+1, armY, BD); pset(grid, rArmX, armY, BD); pset(grid, rArmX, armY+1, BD);
+    } else { // idle
+      if      (dna.armStyle === 0) { pset(grid, lArmX, armY,   BD); pset(grid, lArmX, armY+1, BD); }
+      else if (dna.armStyle === 1) { pset(grid, lArmX, armY-1, BD); pset(grid, lArmX, armY,   BD); }
+      else                         { pset(grid, lArmX, armY,   BD); pset(grid, lArmX-1, armY, BD); }
+      pset(grid, rArmX, armY, BD); pset(grid, rArmX, armY+1, BD);
+    }
   }
 
-  // ─ Legs + Feet ───────────────────────────────────────────────────────────────
-  // Matching sketch:
-  //   [torso]
-  //    . .   . .     <- dos columnas por pata (x=8,10 y x=14,16)
-  //    . .   . .
-  //     .     .      <- pie: columna central de cada par (x=9 y x=15)
-  //
-  // Clear foot zone so body overflow never adds extra rows
+  // ─ Tail (idle only) ──────────────────────────────────────────────────────────
+  if (dna.hasTail && pose === 'idle') {
+    const ty = bodyCy + dna.tailOffset;
+    pset(grid, rArmX, ty, BD); pset(grid, rArmX+1, ty-1, BD);
+  }
+
+  // ─ Feet ──────────────────────────────────────────────────────────────────────
   for (let y = 19; y <= 21; y++)
     for (let x = 0; x < G; x++)
       if (grid[y][x] === BD) grid[y][x] = E;
 
-  // Foot shape — 3 rows:
-  //  y=19:  ■ _ ■     x=8  _  x=10     x=14  _  x=16
-  //  y=20:  ■ _ ■     same
-  //  y=21:  _ ■ _        x=9                x=15
-  pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
-  pset(grid,  8, 20, BD); pset(grid, 10, 20, BD);
-  pset(grid,  9, 21, BD);
-
-  pset(grid, 14, 19, BD); pset(grid, 16, 19, BD);
-  pset(grid, 14, 20, BD); pset(grid, 16, 20, BD);
-  pset(grid, 15, 21, BD);
-
-  // ─ Optional small tail (right side, for 3/4 asymmetry) ───────────────────────
-  if (chance(0.2)) {
-    const ty = bodyCy + rndInt(0, 3);
-    pset(grid, rArmX, ty, BD); pset(grid, rArmX+1, ty-1, BD);
+  if (pose === 'running') {
+    const leftUp  = frame === 0;
+    const rightUp = frame === 2;
+    // Raised foot: shifted up 2 rows for dramatic kick
+    if (leftUp) {
+      pset(grid,  8, 17, BD); pset(grid, 10, 17, BD);
+      pset(grid,  8, 18, BD); pset(grid, 10, 18, BD); pset(grid,  9, 19, BD);
+    } else {
+      pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
+      pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
+    }
+    if (rightUp) {
+      pset(grid, 14, 17, BD); pset(grid, 16, 17, BD);
+      pset(grid, 14, 18, BD); pset(grid, 16, 18, BD); pset(grid, 15, 19, BD);
+    } else {
+      pset(grid, 14, 19, BD); pset(grid, 16, 19, BD);
+      pset(grid, 14, 20, BD); pset(grid, 16, 20, BD); pset(grid, 15, 21, BD);
+    }
+  } else if (pose === 'dead') {
+    pset(grid,  6, 19, BD); pset(grid,  8, 19, BD);
+    pset(grid,  6, 20, BD); pset(grid,  8, 20, BD); pset(grid,  7, 21, BD);
+    pset(grid, 16, 19, BD); pset(grid, 18, 19, BD);
+    pset(grid, 16, 20, BD); pset(grid, 18, 20, BD); pset(grid, 17, 21, BD);
+  } else {
+    pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
+    pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
+    pset(grid, 14, 19, BD); pset(grid, 16, 19, BD);
+    pset(grid, 14, 20, BD); pset(grid, 16, 20, BD); pset(grid, 15, 21, BD);
   }
 
   // ─ Outline ───────────────────────────────────────────────────────────────────
   addOutline(grid);
 
-  // ─ 3/4 perspective: face features all shifted +1 right of center ─────────────
-  const faceCx = bodyCx + 1;
+  // ─ Face ──────────────────────────────────────────────────────────────────────
+  const faceCx      = bodyCx + 1;
+  const muzzleBaseY = bodyCy + Math.round(bodyRy * 0.2);
 
-  // ─ Face patch ────────────────────────────────────────────────────────────────
   fillEllipse(grid, faceCx, bodyCy + 1, bodyRx * 0.6, bodyRy * 0.65, FC);
 
-  // ─ Muzzle / snout ────────────────────────────────────────────────────────────
-  const muzzleBaseY = bodyCy + Math.round(bodyRy * 0.2);
-  const hasMuzzle   = animalType === 'frog' ? false // frog muzzle already in BD shape
-                    : chance(0.6);
-
   if (animalType === 'frog') {
-    // Lighten the muzzle area (already shaped as BD above)
     const muzzL = Math.round(bodyCx - bodyRx) - 3;
     const muzzR = bodyCx - 1;
     const muzzY = bodyCy + Math.round(bodyRy * 0.1);
     for (let y = muzzY - 1; y <= muzzY + 2; y++)
       for (let x = muzzL; x <= muzzR; x++)
         if (grid[y][x] === BD || grid[y][x] === OL) pset(grid, x, y, FC);
-    // Nostrils
-    pset(grid, muzzR - 1, muzzY, EP);
-    pset(grid, muzzR - 3, muzzY, EP);
-  } else if (hasMuzzle) {
+    pset(grid, muzzR - 1, muzzY, EP); pset(grid, muzzR - 3, muzzY, EP);
+  } else if (dna.hasMuzzle) {
     fillEllipse(grid, faceCx - 1, muzzleBaseY + 1, 2.5, 1.8, FC);
-    pset(grid, faceCx - 1, muzzleBaseY, EP); // nose dot
+    pset(grid, faceCx - 1, muzzleBaseY, EP);
   }
 
-  // ─ Eyes ──────────────────────────────────────────────────────────────────────
+  // Eyes
   const eyeY  = bodyCy - Math.round(bodyRy * 0.15);
-  const eyeSp = animalType === 'frog' ? rndInt(3, 4) : rndInt(2, 3);
-  const eyeLX = faceCx - eyeSp;
-  const eyeRX = faceCx + eyeSp;
+  const eyeLX = faceCx - dna.eyeSp;
+  const eyeRX = faceCx + dna.eyeSp;
 
-  rnd([
-    () => { pset(grid, eyeLX, eyeY, EP); pset(grid, eyeRX, eyeY, EP); },
-    () => {
-      fillEllipse(grid, eyeLX, eyeY, 1.4, 1.4, EW); pset(grid, eyeLX, eyeY, EP);
-      fillEllipse(grid, eyeRX, eyeY, 1.4, 1.4, EW); pset(grid, eyeRX, eyeY, EP);
-    },
-    () => {
-      fillEllipse(grid, eyeLX, eyeY, 1.4, 1.4, EW); pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX-1, eyeY-1, ES);
-      fillEllipse(grid, eyeRX, eyeY, 1.4, 1.4, EW); pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX-1, eyeY-1, ES);
-    },
-    () => { // happy arcs
-      pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
-      pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
-    },
-  ])();
+  if (pose === 'dead') {
+    [[eyeLX, eyeY], [eyeRX, eyeY]].forEach(([ex, ey]) => {
+      pset(grid, ex-1, ey-1, EP); pset(grid, ex+1, ey-1, EP);
+      pset(grid, ex,   ey,   EP);
+      pset(grid, ex-1, ey+1, EP); pset(grid, ex+1, ey+1, EP);
+    });
+  } else if (pose === 'happy') {
+    pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
+    pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
+  } else if (pose === 'sad') {
+    if (frame === 3) { // squinting/crying harder
+      pset(grid, eyeLX, eyeY, EP);
+      pset(grid, eyeRX, eyeY, EP);
+    } else {
+      pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP);
+      pset(grid, eyeRX,   eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
+    }
+  } else {
+    [
+      () => { pset(grid, eyeLX, eyeY, EP); pset(grid, eyeRX, eyeY, EP); },
+      () => {
+        fillEllipse(grid, eyeLX, eyeY, 1.4, 1.4, EW); pset(grid, eyeLX, eyeY, EP);
+        fillEllipse(grid, eyeRX, eyeY, 1.4, 1.4, EW); pset(grid, eyeRX, eyeY, EP);
+      },
+      () => {
+        fillEllipse(grid, eyeLX, eyeY, 1.4, 1.4, EW); pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX-1, eyeY-1, ES);
+        fillEllipse(grid, eyeRX, eyeY, 1.4, 1.4, EW); pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX-1, eyeY-1, ES);
+      },
+      () => {
+        pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
+        pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
+      },
+    ][dna.eyeStyle]();
+  }
 
-  if (!hasMuzzle && animalType !== 'frog' && chance(0.4))
-    pset(grid, faceCx, eyeY + 2, EP); // small nose
+  if (dna.hasNose && pose !== 'dead')
+    pset(grid, faceCx, eyeY + 2, EP);
 
-  // ─ Mouth ─────────────────────────────────────────────────────────────────────
-  const mY = hasMuzzle ? muzzleBaseY + 1
+  // Mouth
+  const mY = dna.hasMuzzle ? muzzleBaseY + 1
            : animalType === 'frog' ? bodyCy + Math.round(bodyRy * 0.12) + 2
            : bodyCy + Math.round(bodyRy * 0.35);
-  rnd([
-    () => { pset(grid,faceCx-1,mY,MO); pset(grid,faceCx,mY+1,MO); pset(grid,faceCx+1,mY,MO); },
-    () => { pset(grid,faceCx,mY,MO); pset(grid,faceCx-1,mY+1,MO); pset(grid,faceCx+1,mY+1,MO); },
-    () => { pset(grid,faceCx-1,mY,MO); pset(grid,faceCx,mY,MO); pset(grid,faceCx+1,mY,MO); },
-    () => { pset(grid,faceCx,mY,MO); },
-  ])();
 
-  // ─ Cheeks ────────────────────────────────────────────────────────────────────
-  if (chance(0.6)) {
+  if (pose === 'happy') {
+    pset(grid,faceCx-2,mY,MO); pset(grid,faceCx-1,mY+1,MO);
+    pset(grid,faceCx,  mY,MO); pset(grid,faceCx+1,mY+1,MO); pset(grid,faceCx+2,mY,MO);
+  } else if (pose === 'sad') {
+    pset(grid,faceCx-1,mY+1,MO); pset(grid,faceCx,mY,MO); pset(grid,faceCx+1,mY+1,MO);
+  } else if (pose === 'dead') {
+    // no mouth when dead
+  } else {
+    [
+      () => { pset(grid,faceCx-1,mY,MO); pset(grid,faceCx,mY+1,MO); pset(grid,faceCx+1,mY,MO); },
+      () => { pset(grid,faceCx,mY,MO); pset(grid,faceCx-1,mY+1,MO); pset(grid,faceCx+1,mY+1,MO); },
+      () => { pset(grid,faceCx-1,mY,MO); pset(grid,faceCx,mY,MO); pset(grid,faceCx+1,mY,MO); },
+      () => { pset(grid,faceCx,mY,MO); },
+    ][dna.mouthStyle]();
+  }
+
+  // Cheeks
+  if (dna.hasCheeks && pose !== 'dead') {
     const ckY  = eyeY + 1;
     const ckLX = faceCx - Math.round(bodyRx * 0.58);
     const ckRX = faceCx + Math.round(bodyRx * 0.58);
@@ -412,31 +517,68 @@ function generateCharacter() {
     pset(grid, ckRX,   ckY, CK); pset(grid, ckRX+1, ckY, CK);
   }
 
-  // ─ Body marking ──────────────────────────────────────────────────────────────
-  if (chance(0.3)) {
+  // Body marking (idle only)
+  if (dna.hasMarking && pose === 'idle') {
     const pY = Math.round(bodyCy + bodyRy * 0.3);
-    rnd([
-      () => {
-        const sx = Math.round(faceCx - bodyRx * 0.42);
-        const rx2 = Math.round(faceCx + bodyRx * 0.42);
-        if (grid[pY]?.[sx]  === FC) grid[pY][sx]  = SH;
-        if (grid[pY]?.[rx2] === FC) grid[pY][rx2] = SH;
-      },
-      () => {
-        for (let x = Math.ceil(bodyCx - bodyRx * 0.6); x <= Math.floor(bodyCx + bodyRx * 0.6); x++)
-          if (grid[pY]?.[x] === FC || grid[pY]?.[x] === BD) grid[pY][x] = SH;
-      },
-    ])();
+    if (dna.markingStyle === 0) {
+      const sx  = Math.round(faceCx - bodyRx * 0.42);
+      const rx2 = Math.round(faceCx + bodyRx * 0.42);
+      if (grid[pY]?.[sx]  === FC) grid[pY][sx]  = SH;
+      if (grid[pY]?.[rx2] === FC) grid[pY][rx2] = SH;
+    } else {
+      for (let x = Math.ceil(bodyCx - bodyRx * 0.6); x <= Math.floor(bodyCx + bodyRx * 0.6); x++)
+        if (grid[pY]?.[x] === FC || grid[pY]?.[x] === BD) grid[pY][x] = SH;
+    }
   }
 
-  // ─ Bow (only when there's clear head space) ──────────────────────────────────
-  if (chance(0.2) && earTopY >= 4 && animalType !== 'dog') {
+  // Bow (idle only)
+  if (dna.hasBow && pose === 'idle') {
     const bY = earTopY - 1;
     pset(grid,10,bY,SH); pset(grid,11,bY-1,SH); pset(grid,12,bY,EP); pset(grid,13,bY-1,SH); pset(grid,14,bY,SH);
     pset(grid,10,bY-1,SH); pset(grid,14,bY-1,SH);
   }
 
-  return { grid, palette: rnd(PALETTES) };
+  // Happy: sparkle/brillito on even frames (star cross shape)
+  if (pose === 'happy' && frame % 2 === 0) {
+    const spX = eyeRX + 2, spY = eyeY - 2;
+    pset(grid, spX,   spY-1, ES);
+    pset(grid, spX-1, spY,   ES); pset(grid, spX, spY, ES); pset(grid, spX+1, spY, ES);
+    pset(grid, spX,   spY+1, ES);
+  }
+
+  // Sad: single blue tear pixel below left eye (always)
+  if (pose === 'sad') {
+    pset(grid, eyeLX, eyeY + 2, TR);
+  }
+
+  // Dead: mosca (fly) orbiting the head
+  if (pose === 'dead') {
+    const flyPositions = [
+      [faceCx + 3, bodyCy - 3],
+      [faceCx + 1, bodyCy - 5],
+      [faceCx - 2, bodyCy - 4],
+      [faceCx - 3, bodyCy - 2],
+    ];
+    const [fx, fy] = flyPositions[frame];
+    pset(grid, fx-1, fy-1, SH); pset(grid, fx+1, fy-1, SH); // wings
+    pset(grid, fx,   fy,   SH);                               // body
+  }
+
+  // Running: speed lines on all frames
+  if (pose === 'running') {
+    const motY = bodyCy + Math.round(bodyRy * 0.3);
+    pset(grid, lArmX-2, motY,   SH);
+    pset(grid, lArmX-4, motY+1, SH);
+    pset(grid, lArmX-2, motY+2, SH);
+    pset(grid, lArmX-4, motY+3, SH);
+  }
+
+  return grid;
+}
+
+function generateCharacter() {
+  const dna = generateDNA();
+  return { grid: buildCharacterGrid(dna), palette: dna.palette, dna };
 }
 // ─── Renderer ─────────────────────────────────────────────────────────────────
 let state = { grid: null, palette: null, name: '---' };
@@ -454,6 +596,7 @@ function render(grid, palette, targetCtx, scale) {
     [SH]: palette.shade,
     [NS]: palette.body,
     [FC]: palette.face,
+    [TR]: '#5599ff',
   };
 
   targetCtx.fillStyle = palette.bg;
@@ -487,11 +630,71 @@ function drawGrid(alpha = 0.1) {
 }
 
 function generate() {
-  const { grid, palette } = generateCharacter();
+  const { grid, palette, dna } = generateCharacter();
   const name = randomName();
-  state = { grid, palette, name };
+  state = { grid, palette, name, dna };
   render(grid, palette, ctx, S);
   document.getElementById('pet-name').textContent = name;
+  document.getElementById('sprite-sheet-section').style.display = 'none';
+}
+
+// ─── Sprite Sheet ─────────────────────────────────────────────────────────────
+function generateSpriteSheet() {
+  if (!state.dna) return;
+  const dna = state.dna;
+
+  const POSES = [
+    { label: 'HAPPY',   pose: 'happy',   frames: 4 },
+    { label: 'SAD',     pose: 'sad',     frames: 4 },
+    { label: 'RUNNING', pose: 'running', frames: 4 },
+    { label: 'DEAD',    pose: 'dead',    frames: 4 },
+  ];
+
+  const FSCALE   = 4;
+  const CELL     = G * FSCALE;  // 96px per frame
+  const LABEL_H  = 16;
+  const GROUP_GAP = 10;
+  // Each group: 4 frames arranged 2×2
+  const GROUP_W  = 2 * CELL;    // 192px
+  const GROUP_H  = 2 * CELL;    // 192px
+
+  const sc = document.getElementById('sprite-sheet');
+  sc.width  = 2 * GROUP_W + GROUP_GAP;
+  sc.height = 2 * (LABEL_H + GROUP_H) + GROUP_GAP;
+  const sCtx = sc.getContext('2d');
+
+  sCtx.fillStyle = '#0d0d1a';
+  sCtx.fillRect(0, 0, sc.width, sc.height);
+
+  POSES.forEach(({ label, pose, frames }, i) => {
+    const col    = i % 2;
+    const row    = Math.floor(i / 2);
+    const groupX = col * (GROUP_W + GROUP_GAP);
+    const groupY = row * (LABEL_H + GROUP_H + GROUP_GAP);
+
+    // Label
+    sCtx.fillStyle = '#aa88ff';
+    sCtx.font = 'bold 9px monospace';
+    sCtx.textAlign = 'center';
+    sCtx.fillText(label, groupX + GROUP_W / 2, groupY + LABEL_H - 4);
+
+    // 4 frames in 2×2 grid
+    for (let f = 0; f < frames; f++) {
+      const fc = f % 2;
+      const fr = Math.floor(f / 2);
+      const fx = groupX + fc * CELL;
+      const fy = groupY + LABEL_H + fr * CELL;
+      const grid = buildCharacterGrid(dna, pose, f);
+      const tmp  = document.createElement('canvas');
+      tmp.width  = tmp.height = CELL;
+      render(grid, dna.palette, tmp.getContext('2d'), FSCALE);
+      sCtx.drawImage(tmp, fx, fy);
+      sCtx.strokeStyle = '#334'; sCtx.lineWidth = 1;
+      sCtx.strokeRect(fx + 0.5, fy + 0.5, CELL - 1, CELL - 1);
+    }
+  });
+
+  document.getElementById('sprite-sheet-section').style.display = 'flex';
 }
 
 // ─── Grid toggle ──────────────────────────────────────────────────────────────
@@ -519,6 +722,14 @@ document.getElementById('btn-download').addEventListener('click', () => {
 
 // ─── Generate button ──────────────────────────────────────────────────────────
 document.getElementById('btn-generate').addEventListener('click', generate);
+document.getElementById('btn-spritesheet').addEventListener('click', generateSpriteSheet);
+document.getElementById('btn-download-sheet').addEventListener('click', () => {
+  const sc = document.getElementById('sprite-sheet');
+  const a = document.createElement('a');
+  a.download = (state.name || 'sprite') + '-sheet.png';
+  a.href = sc.toDataURL('image/png');
+  a.click();
+});
 
 // ─── Spacebar shortcut ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
