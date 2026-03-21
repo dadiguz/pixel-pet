@@ -108,7 +108,7 @@
       align-items: center;
       gap: 10px;
     }
-    #sprite-sheet { border: 2px solid #334; image-rendering: pixelated; }
+    #sprite-sheet { border: 2px solid #334; image-rendering: pixelated; background: #fff; }
 
     #btn-download-sheet {
       background: transparent;
@@ -141,6 +141,7 @@
       border: 2px solid #334;
       image-rendering: pixelated;
       display: block;
+      background: #fff;
     }
 
     .btn-preview {
@@ -535,9 +536,20 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid, faceCx - 1, muzzleBaseY, EP);
   }
 
-  // Eyes
-  const eyeLX = faceCx - dna.eyeSp;
-  const eyeRX = faceCx + dna.eyeSp;
+  // Eyes — clamp spacing so eyes stay inside the face patch
+  const maxEyeSp = Math.max(1, Math.floor(faceRx - 0.3));
+  const eyeSp    = Math.min(dna.eyeSp, maxEyeSp);
+  const eyeLX    = faceCx - eyeSp;
+  const eyeRX    = faceCx + eyeSp;
+
+  // Force 3×3 FC at each eye center — EW is transparent so fillEllipse(EW)
+  // was erasing the FC background we need to make EP visible on body cells
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (pget(grid, eyeLX + dx, eyeY + dy) !== E) pset(grid, eyeLX + dx, eyeY + dy, FC);
+      if (pget(grid, eyeRX + dx, eyeY + dy) !== E) pset(grid, eyeRX + dx, eyeY + dy, FC);
+    }
+  }
 
   if (pose === 'dead') {
     [[eyeLX, eyeY], [eyeRX, eyeY]].forEach(([ex, ey]) => {
@@ -549,7 +561,7 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
     pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
   } else if (pose === 'sad') {
-    if (frame === 3) { // squinting/crying harder
+    if (frame === 3) {
       pset(grid, eyeLX, eyeY, EP);
       pset(grid, eyeRX, eyeY, EP);
     } else {
@@ -558,15 +570,19 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     }
   } else {
     [
+      // style 0: simple dot
       () => { pset(grid, eyeLX, eyeY, EP); pset(grid, eyeRX, eyeY, EP); },
+      // style 1: 2px wide (no EW — EW is transparent, was erasing FC background)
       () => {
-        fillEllipse(grid, eyeLX, eyeY, 1.4, 1.4, EW); pset(grid, eyeLX, eyeY, EP);
-        fillEllipse(grid, eyeRX, eyeY, 1.4, 1.4, EW); pset(grid, eyeRX, eyeY, EP);
+        pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP);
+        pset(grid, eyeRX,   eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
       },
+      // style 2: dot + shine
       () => {
-        fillEllipse(grid, eyeLX, eyeY, 1.4, 1.4, EW); pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX-1, eyeY-1, ES);
-        fillEllipse(grid, eyeRX, eyeY, 1.4, 1.4, EW); pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX-1, eyeY-1, ES);
+        pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX-1, eyeY-1, ES);
+        pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX-1, eyeY-1, ES);
       },
+      // style 3: upward arc
       () => {
         pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
         pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
@@ -724,7 +740,7 @@ function render(grid, palette, targetCtx, scale) {
     [E]:  null,
     [BD]: palette.body,
     [OL]: palette.body,
-    [EW]: palette.eyeW,
+    [EW]: null,
     [EP]: palette.eyeP,
     [ES]: '#ffffff',
     [MO]: palette.body,
@@ -738,8 +754,7 @@ function render(grid, palette, targetCtx, scale) {
     [GY]: '#888888',
   };
 
-  targetCtx.fillStyle = palette.bg;
-  targetCtx.fillRect(0, 0, G * scale, G * scale);
+  targetCtx.clearRect(0, 0, G * scale, G * scale);
 
   for (let y = 0; y < G; y++) {
     for (let x = 0; x < G; x++) {
@@ -808,8 +823,7 @@ function generateSpriteSheet() {
   sc.height = ROWS * (LABEL_H + GROUP_H) + (ROWS - 1) * GROUP_GAP;
   const sCtx = sc.getContext('2d');
 
-  sCtx.fillStyle = '#0d0d1a';
-  sCtx.fillRect(0, 0, sc.width, sc.height);
+  sCtx.clearRect(0, 0, sc.width, sc.height);
 
   POSES.forEach(({ label, pose, frames }, i) => {
     const col    = i % COLS;
