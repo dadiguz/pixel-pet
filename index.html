@@ -168,7 +168,7 @@
       align-items: flex-start;
     }
 
-    #accessories-panel {
+    #type-panel, #accessories-panel {
       border: 2px solid #334;
       background: #111122;
       padding: 14px 16px;
@@ -197,7 +197,8 @@
       user-select: none;
     }
 
-    .acc-item input[type="checkbox"] {
+    .acc-item input[type="checkbox"],
+    .acc-item input[type="radio"] {
       accent-color: #aa88ff;
       width: 14px;
       height: 14px;
@@ -214,6 +215,39 @@
       <canvas id="canvas"></canvas>
       <canvas id="grid-overlay"></canvas>
     </div>
+    <div id="type-panel">
+      <div class="acc-title">Tipo</div>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="any" checked> Cualquiera
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="dog"> Perro
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="cat"> Gato
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="bunny"> Conejo
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="bear"> Oso
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="mouse"> Ratón
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="frog"> Rana
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="duck"> Pato
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="axolotl"> Ajolote
+      </label>
+      <label class="acc-item">
+        <input type="radio" name="animal-type" value="smooth"> Liso
+      </label>
+    </div>
     <div id="accessories-panel">
       <div class="acc-title">Accesorios</div>
       <label class="acc-item">
@@ -221,6 +255,9 @@
       </label>
       <label class="acc-item">
         <input type="checkbox" id="acc-cap"> Gorra
+      </label>
+      <label class="acc-item">
+        <input type="checkbox" id="acc-outline"> Contorno negro
       </label>
     </div>
   </div>
@@ -232,6 +269,8 @@
     <button id="btn-download">[ Download ]</button>
     <button id="btn-spritesheet">[ Sprite Sheet ]</button>
     <button id="btn-grid">Grid</button>
+    <button id="btn-detailed">[ Detallado ]</button>
+    <button id="btn-16bit">[ 16-bit ]</button>
   </div>
 
   <div id="preview-section">
@@ -388,6 +427,9 @@ const PALETTES = [
   // Charcoal (Warm Grey neutrals)
   { name: 'ink',       body: '#27241D', shade: '#625D52', face: '#FAF9F7', eyeP: '#27241D', cheek: '#DA4A91' },
   { name: 'slate',     body: '#1F2933', shade: '#3E4C59', face: '#F0F4F8', eyeP: '#1F2933', cheek: '#F35627' },
+  // Rosa / bubblegum
+  { name: 'bubblegum', body: '#C2185B', shade: '#F06292', face: '#FCE4EC', eyeP: '#880E4F', cheek: '#FFD740' },
+  { name: 'sakura',    body: '#AD1457', shade: '#FF80AB', face: '#FFF0F5', eyeP: '#6A0032', cheek: '#80DEEA' },
 ];
 
 // ─── Name generator — nombres mexicanos generados por sílabas ─────────────────
@@ -412,24 +454,24 @@ function generateDNA() {
   const earTopY = 18 - 2 * bodyRy;
 
   const animalType = earTopY >= 5
-    ? rnd(['bunny','bunny','cat','cat','bear','bear','dog','mouse','smooth'])
+    ? rnd(['bunny','bunny','cat','cat','bear','bear','dog','mouse','axolotl','smooth'])
     : earTopY >= 3
-    ? rnd(['bear','bear','dog','dog','frog','duck','smooth'])
+    ? rnd(['bear','bear','dog','dog','frog','duck','axolotl','smooth'])
     : rnd(['frog','frog','dog','duck','smooth']);
 
   const earSp      = Math.round(bodyRx * 0.5);
   const bunnyEarH  = animalType === 'bunny' ? Math.max(1, Math.min(rndInt(3,5), earTopY-1)) : 0;
   const bearEarR   = animalType === 'bear'  ? (earTopY >= 4 ? 2.2 : 1.6) : 0;
   const armStyle   = rndInt(0, 2);
-  const eyeSp      = animalType === 'frog' ? rndInt(3,4) : rndInt(2,3);
+  const eyeSp      = (animalType === 'frog' || animalType === 'axolotl') ? rndInt(3,4) : rndInt(3,4);
   const eyeStyle   = rndInt(0, 3);
-  const hasMuzzle  = animalType !== 'frog' && chance(0.6);
+  const hasMuzzle  = animalType !== 'frog' && animalType !== 'axolotl' && chance(0.6);
   const mouthStyle = rndInt(0, 3);
   const hasNose    = !hasMuzzle && animalType !== 'frog' && chance(0.4);
-  const hasCheeks  = chance(0.6);
+  const hasCheeks  = true; // always — Kirby style
   const hasMarking = chance(0.3);
   const markingStyle = rndInt(0, 1);
-  const hasBow     = chance(0.2) && earTopY >= 4 && animalType !== 'dog';
+  const hasBow     = chance(0.2) && earTopY >= 4 && animalType !== 'dog' && animalType !== 'axolotl';
   const hasTail    = chance(0.2);
   const tailOffset = rndInt(0, 3);
 
@@ -474,16 +516,41 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     fillEllipse(grid, lEarX, earTopY - bunnyEarH, 1.5, bunnyEarH, BD);
     fillEllipse(grid, rEarX, earTopY - bunnyEarH, 1.5, bunnyEarH, BD);
   } else if (animalType === 'cat') {
-    pset(grid, lEarX, earTopY, BD); pset(grid, lEarX, earTopY-1, BD); pset(grid, lEarX-1, Math.max(0,earTopY-2), BD);
-    pset(grid, rEarX, earTopY, BD); pset(grid, rEarX, earTopY-1, BD); pset(grid, rEarX+1, Math.max(0,earTopY-2), BD);
+    // Orejas triangulares: base 2px, se estrecha a punta
+    const t = earTopY;
+    pset(grid, lEarX-1, t,   BD); pset(grid, lEarX, t,   BD);
+    pset(grid, lEarX-1, t-1, BD); pset(grid, lEarX, t-1, BD);
+    pset(grid, lEarX-1, Math.max(0, t-2), BD);
+    pset(grid, rEarX,   t,   BD); pset(grid, rEarX+1, t,   BD);
+    pset(grid, rEarX,   t-1, BD); pset(grid, rEarX+1, t-1, BD);
+    pset(grid, rEarX+1, Math.max(0, t-2), BD);
   } else if (animalType === 'bear') {
     fillEllipse(grid, lEarX, earTopY, bearEarR, bearEarR, BD);
     fillEllipse(grid, rEarX, earTopY, bearEarR, bearEarR, BD);
   } else if (animalType === 'dog') {
-    for (let i = 0; i <= 6; i++) {
-      pset(grid, lEarX - 1, bodyCy - 2 + i, BD);
-      pset(grid, rEarX + 1, bodyCy - 2 + i, BD);
+    // Oreja caída en la nuca (lado derecho = parte de atrás), pegada al cuerpo
+    const earRX     = Math.round(bodyCx + bodyRx);
+    const dogEarTop = bodyCy - Math.round(bodyRy * 0.3) + 1;
+    const dogEarBot = bodyCy + Math.round(bodyRy * 0.55) + 1;
+    for (let y = dogEarTop; y <= dogEarBot; y++) {
+      pset(grid, earRX,     y, BD);
+      pset(grid, earRX + 1, y, BD);
     }
+    pset(grid, earRX, dogEarBot + 1, BD);
+  } else if (animalType === 'axolotl') {
+    // 3 branquias-pico por lado, en los bordes laterales de la cabeza
+    const gBase = bodyCy - Math.round(bodyRy * 0.1);
+    const lEdge = Math.round(bodyCx - bodyRx);
+    const rEdge = Math.round(bodyCx + bodyRx);
+    [-3, 0, 3].forEach(o => {
+      const p = gBase + o;
+      pset(grid, lEdge-1, p,   BD);
+      pset(grid, lEdge-2, p-1, BD);
+      pset(grid, lEdge-2, p-2, BD);
+      pset(grid, rEdge+1, p,   BD);
+      pset(grid, rEdge+2, p-1, BD);
+      pset(grid, rEdge+2, p-2, BD);
+    });
   } else if (animalType === 'mouse') {
     fillEllipse(grid, lEarX - 1, earTopY + 1, 2.3, 2.3, BD);
     fillEllipse(grid, rEarX + 1, earTopY + 1, 2.3, 2.3, BD);
@@ -494,10 +561,17 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     for (let y = muzzY - 1; y <= muzzY + 2; y++)
       for (let x = muzzL; x <= muzzR; x++) pset(grid, x, y, BD);
   } else if (animalType === 'duck') {
-    const wY = bodyCy + Math.round(bodyRy * 0.1);
-    const wX = Math.round(bodyCx - bodyRx) - 1;
-    for (let i = 0; i < 3; i++) {
-      pset(grid, wX, wY+i, BD); pset(grid, wX-1, wY+i, BD); pset(grid, wX-2, wY+i, BD);
+    const wY = bodyCy + Math.round(bodyRy * 0.1) - 2;
+    const wX = Math.round(bodyCx - bodyRx) + 1;
+    // _.... filas pares: cols 1-4 (sin punta)
+    // .____ filas impares: solo col 0 (punta)
+    for (let i = 0; i < 5; i++) {
+      if (i % 2 === 0) {
+        pset(grid, wX-3, wY+i, BD); pset(grid, wX-2, wY+i, BD);
+        pset(grid, wX-1, wY+i, BD); pset(grid, wX,   wY+i, BD);
+      } else {
+        pset(grid, wX-4, wY+i, BD);
+      }
     }
   }
 
@@ -570,9 +644,26 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   }
 
   // ─ Tail (idle only) ──────────────────────────────────────────────────────────
-  if (dna.hasTail && pose === 'idle') {
+  const showTail = (animalType === 'dog' || animalType === 'axolotl') ? pose === 'idle' : (dna.hasTail && pose === 'idle');
+  if (showTail) {
     const ty = bodyCy + dna.tailOffset;
-    pset(grid, rArmX, ty, BD); pset(grid, rArmX+1, ty-1, BD);
+    if (animalType === 'axolotl') {
+      // Cola en forma de aleta dorsal
+      pset(grid, rArmX+1, ty-1, BD);
+      pset(grid, rArmX+1, ty,   BD);
+      pset(grid, rArmX+1, ty+1, BD);
+      pset(grid, rArmX+2, ty-1, BD);
+      pset(grid, rArmX+2, ty,   BD);
+      pset(grid, rArmX+3, ty,   BD);
+    } else if (animalType === 'dog') {
+      // Cola de perro: más larga y curvada hacia arriba
+      pset(grid, rArmX + 1, ty,     BD);
+      pset(grid, rArmX + 2, ty - 1, BD);
+      pset(grid, rArmX + 2, ty - 2, BD);
+      pset(grid, rArmX + 1, ty - 3, BD);
+    } else {
+      pset(grid, rArmX, ty, BD); pset(grid, rArmX+1, ty-1, BD);
+    }
   }
 
   // ─ Feet ──────────────────────────────────────────────────────────────────────
@@ -630,12 +721,12 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   const faceCx      = bodyCx - 1;
   const muzzleBaseY = bodyCy + Math.round(bodyRy * 0.2);
 
-  // Face patch: centered between eyes and mouth, tight oval
-  const eyeY   = bodyCy - Math.round(bodyRy * 0.15);
-  const mouthY = bodyCy + Math.round(bodyRy * 0.35);
+  // Face patch: large Kirby-style oval covering most of the face
+  const eyeY   = bodyCy - Math.round(bodyRy * 0.30); // eyes higher up
+  const mouthY = bodyCy + Math.round(bodyRy * 0.40);
   const facePatchCy = Math.round((eyeY + mouthY) / 2);
-  const faceRy = (mouthY - eyeY) / 2 + 1;
-  const faceRx = Math.max(faceRy * 0.65, Math.min(bodyRx * 0.52, faceRy * 0.9));
+  const faceRy = (mouthY - eyeY) / 2 + 2;
+  const faceRx = Math.max(faceRy * 0.80, Math.min(bodyRx * 0.72, faceRy * 1.05));
   fillEllipse(grid, faceCx, facePatchCy, faceRx, faceRy, FC);
 
   if (animalType === 'frog') {
@@ -646,6 +737,15 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       for (let x = muzzL; x <= muzzR; x++)
         if (grid[y][x] === BD || grid[y][x] === OL) pset(grid, x, y, FC);
     pset(grid, muzzR - 1, muzzY, EP); pset(grid, muzzR - 3, muzzY, EP);
+  } else if (animalType === 'dog') {
+    // Hocico siempre presente
+    fillEllipse(grid, faceCx - 2, muzzleBaseY + 1, 3, 2, FC);
+    // Nariz de perro: óvalo oscuro en la punta del hocico
+    const noseX = faceCx - 5;
+    pset(grid, noseX,     muzzleBaseY,     EP);
+    pset(grid, noseX + 1, muzzleBaseY,     EP);
+    pset(grid, noseX,     muzzleBaseY + 1, EP);
+    pset(grid, noseX + 1, muzzleBaseY + 1, EP);
   } else if (dna.hasMuzzle) {
     fillEllipse(grid, faceCx - 1, muzzleBaseY + 1, 2.5, 1.8, FC);
     pset(grid, faceCx - 1, muzzleBaseY, EP);
@@ -657,39 +757,44 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   const eyeLX    = faceCx - eyeSp;
   const eyeRX    = faceCx + eyeSp;
 
-  // Force 3×3 FC at each eye center — EW is transparent so fillEllipse(EW)
-  // was erasing the FC background we need to make EP visible on body cells
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  // Clear a 5×4 FC zone around each eye center (covers 2×2 pupil + shine + padding)
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
       if (pget(grid, eyeLX + dx, eyeY + dy) !== E) pset(grid, eyeLX + dx, eyeY + dy, FC);
       if (pget(grid, eyeRX + dx, eyeY + dy) !== E) pset(grid, eyeRX + dx, eyeY + dy, FC);
     }
   }
 
   if (pose === 'dead') {
+    // X eyes — larger for Kirby
     [[eyeLX, eyeY], [eyeRX, eyeY]].forEach(([ex, ey]) => {
       pset(grid, ex-1, ey-1, EP); pset(grid, ex+1, ey-1, EP);
       pset(grid, ex,   ey,   EP);
       pset(grid, ex-1, ey+1, EP); pset(grid, ex+1, ey+1, EP);
     });
   } else if (pose === 'happy') {
-    pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
-    pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
+    // Squint arc — wider
+    pset(grid, eyeLX-1, eyeY,   EP); pset(grid, eyeLX,   eyeY-1, EP); pset(grid, eyeLX+1, eyeY,   EP);
+    pset(grid, eyeLX-1, eyeY+1, EP);                                   pset(grid, eyeLX+1, eyeY+1, EP);
+    pset(grid, eyeRX-1, eyeY,   EP); pset(grid, eyeRX,   eyeY-1, EP); pset(grid, eyeRX+1, eyeY,   EP);
+    pset(grid, eyeRX-1, eyeY+1, EP);                                   pset(grid, eyeRX+1, eyeY+1, EP);
   } else if (pose === 'sad') {
+    // 2×2 pupil shifted down, no shine
+    pset(grid, eyeLX-1, eyeY,   EP); pset(grid, eyeLX, eyeY,   EP);
+    pset(grid, eyeLX-1, eyeY+1, EP); pset(grid, eyeLX, eyeY+1, EP);
+    pset(grid, eyeRX,   eyeY,   EP); pset(grid, eyeRX+1, eyeY,   EP);
+    pset(grid, eyeRX,   eyeY+1, EP); pset(grid, eyeRX+1, eyeY+1, EP);
     if (frame === 3) {
-      pset(grid, eyeLX, eyeY, EP);
-      pset(grid, eyeRX, eyeY, EP);
-    } else {
-      pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP);
-      pset(grid, eyeRX,   eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
+      // Tearful: tiny pupil in corner
+      pset(grid, eyeLX, eyeY, EP); pset(grid, eyeRX, eyeY, EP);
     }
   } else if (pose === 'hurt') {
     if (frame < 2) {
-      // squinting: horizontal bar eyes
+      // Squinting bar eyes
       pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX+1, eyeY, EP);
       pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
     } else {
-      // X eyes (pain)
+      // X eyes
       [[eyeLX, eyeY], [eyeRX, eyeY]].forEach(([ex, ey]) => {
         pset(grid, ex-1, ey-1, EP); pset(grid, ex+1, ey-1, EP);
         pset(grid, ex,   ey,   EP);
@@ -697,28 +802,18 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       });
     }
   } else {
-    [
-      // style 0: simple dot
-      () => { pset(grid, eyeLX, eyeY, EP); pset(grid, eyeRX, eyeY, EP); },
-      // style 1: 2px wide (no EW — EW is transparent, was erasing FC background)
-      () => {
-        pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP);
-        pset(grid, eyeRX,   eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
-      },
-      // style 2: dot + shine
-      () => {
-        pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX-1, eyeY-1, ES);
-        pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX-1, eyeY-1, ES);
-      },
-      // style 3: upward arc
-      () => {
-        pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY-1, EP); pset(grid, eyeLX+1, eyeY, EP);
-        pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY-1, EP); pset(grid, eyeRX+1, eyeY, EP);
-      },
-    ][dna.eyeStyle]();
+    // All idle styles: Kirby 2×2 pupil + ES shine at top-left
+    // Left eye: 2×2 block at (eyeLX-1..eyeLX, eyeY..eyeY+1)
+    pset(grid, eyeLX-1, eyeY,   EP); pset(grid, eyeLX, eyeY,   EP);
+    pset(grid, eyeLX-1, eyeY+1, EP); pset(grid, eyeLX, eyeY+1, EP);
+    pset(grid, eyeLX-1, eyeY-1, ES); // shine
+    // Right eye: 2×2 block at (eyeRX..eyeRX+1, eyeY..eyeY+1)
+    pset(grid, eyeRX,   eyeY,   EP); pset(grid, eyeRX+1, eyeY,   EP);
+    pset(grid, eyeRX,   eyeY+1, EP); pset(grid, eyeRX+1, eyeY+1, EP);
+    pset(grid, eyeRX,   eyeY-1, ES); // shine
   }
 
-  if (dna.hasNose && pose !== 'dead')
+  if (dna.hasNose && pose !== 'dead' && animalType !== 'duck')
     pset(grid, faceCx, eyeY + 2, EP);
 
   // Mouth
@@ -726,7 +821,9 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
            : animalType === 'frog' ? bodyCy + Math.round(bodyRy * 0.12) + 2
            : bodyCy + Math.round(bodyRy * 0.35);
 
-  if (pose === 'happy') {
+  if (animalType === 'duck') {
+    // sin boca — el pico ya cumple esa función
+  } else if (pose === 'happy') {
     pset(grid,faceCx-2,mY,MO); pset(grid,faceCx-1,mY+1,MO);
     pset(grid,faceCx,  mY,MO); pset(grid,faceCx+1,mY+1,MO); pset(grid,faceCx+2,mY,MO);
   } else if (pose === 'sad') {
@@ -746,13 +843,15 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     ][dna.mouthStyle]();
   }
 
-  // Cheeks
-  if (dna.hasCheeks && pose !== 'dead') {
-    const ckY  = eyeY + 1;
-    const ckLX = faceCx - Math.round(bodyRx * 0.58);
-    const ckRX = faceCx + Math.round(bodyRx * 0.58);
-    pset(grid, ckLX-1, ckY, CK); pset(grid, ckLX, ckY, CK);
-    pset(grid, ckRX,   ckY, CK); pset(grid, ckRX+1, ckY, CK);
+  // Cheeks — always visible, 2×2 Kirby-style blush circles
+  if (pose !== 'dead') {
+    const ckY  = eyeY + 2; // below the 2×2 eye block
+    const ckLX = faceCx - Math.round(bodyRx * 0.60);
+    const ckRX = faceCx + Math.round(bodyRx * 0.60);
+    pset(grid, ckLX-1, ckY,   CK); pset(grid, ckLX, ckY,   CK);
+    pset(grid, ckLX-1, ckY+1, CK); pset(grid, ckLX, ckY+1, CK);
+    pset(grid, ckRX,   ckY,   CK); pset(grid, ckRX+1, ckY,   CK);
+    pset(grid, ckRX,   ckY+1, CK); pset(grid, ckRX+1, ckY+1, CK);
   }
 
   // Body marking (idle only)
@@ -887,7 +986,18 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   } else if (animalType === 'bear') {
     pset(grid, aleLX, earTopY, AC1); pset(grid, aleRX, earTopY, AC1);
   } else if (animalType === 'cat') {
-    pset(grid, aleLX, earTopY - 1, AC1); pset(grid, aleRX, earTopY - 1, AC1);
+    // Inner ear accent en las puntas del triángulo
+    pset(grid, aleLX-1, earTopY - 1, AC1);
+    pset(grid, aleRX+1, earTopY - 1, AC1);
+  } else if (animalType === 'axolotl') {
+    // Puntas de los 3 picos por lado con color acento
+    const gBase = bodyCy - Math.round(bodyRy * 0.1);
+    const lEdge = Math.round(bodyCx - bodyRx);
+    const rEdge = Math.round(bodyCx + bodyRx);
+    [-3, 0, 3].forEach(o => {
+      pset(grid, lEdge-2, gBase + o - 2, AC1);
+      pset(grid, rEdge+2, gBase + o - 2, AC1);
+    });
   }
   // Colored spots scattered on body (not on face/eye/cheek cells)
   dna.spots.forEach(([dx, dy, ci]) => {
@@ -901,16 +1011,315 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
 
 function generateCharacter() {
   const dna = generateDNA();
+  const typeFilter = getAnimalTypeFilter();
+  if (typeFilter !== 'any') dna.animalType = typeFilter;
   return { grid: buildCharacterGrid(dna), palette: dna.palette, dna };
 }
 // ─── Renderer ─────────────────────────────────────────────────────────────────
 let state = { grid: null, palette: null, name: '---' };
 
+function getAnimalTypeFilter() {
+  const selected = document.querySelector('input[name="animal-type"]:checked');
+  return selected ? selected.value : 'any';
+}
+
 function getAccessories() {
   return {
     sunglasses: document.getElementById('acc-sunglasses').checked,
     cap:        document.getElementById('acc-cap').checked,
+    outline:    document.getElementById('acc-outline').checked,
   };
+}
+
+// ─── Render modes: 'normal' | 'detailed' | 'hd' ─────────────────────────────
+let renderMode = 'normal';
+
+function apply16bitShading(targetCtx, dna, canvasSize) {
+  const { bodyCx, bodyCy, bodyRx, bodyRy } = dna;
+  const cell = canvasSize / G;
+  const cx = bodyCx * cell;
+  const cy = bodyCy * cell;
+  const rx = bodyRx * cell;
+  const ry = bodyRy * cell;
+  targetCtx.save();
+  targetCtx.globalCompositeOperation = 'source-atop';
+  // Radial gradient: highlight top-left → shadow bottom-right
+  const grad = targetCtx.createRadialGradient(
+    cx - rx * 0.3, cy - ry * 0.45, 0,
+    cx + rx * 0.1, cy + ry * 0.2,  Math.max(rx, ry) * 1.5
+  );
+  grad.addColorStop(0.00, 'rgba(255,255,255,0.50)');
+  grad.addColorStop(0.28, 'rgba(255,255,255,0.12)');
+  grad.addColorStop(0.52, 'rgba(0,0,0,0.00)');
+  grad.addColorStop(1.00, 'rgba(0,0,0,0.38)');
+  targetCtx.fillStyle = grad;
+  targetCtx.fillRect(0, 0, canvasSize, canvasSize);
+  targetCtx.restore();
+}
+
+function drawBlackOutline(ctx, grid, scale) {
+  ctx.fillStyle = '#111111';
+  for (let y = 0; y < G; y++)
+    for (let x = 0; x < G; x++)
+      if (grid[y][x] === OL) ctx.fillRect(x * scale, y * scale, scale, scale);
+}
+
+function render16bitTrue(grid, dna, acc, targetCtx, displaySize, pose='idle', frame=0) {
+  const hiRes = G * 6; // 144×144 internal — 6px per grid cell
+  const sc    = 6;
+  const tmp   = document.createElement('canvas');
+  tmp.width   = tmp.height = hiRes;
+  const c     = tmp.getContext('2d');
+
+  // ── 1. Base pixel art at 6× ──────────────────────────────────────────────────
+  render(grid, dna.palette, c, sc);
+  applyAccessories(c, dna, acc, sc);
+  if (acc.outline) applyDetailOutline(c, grid, sc);
+  drawHD16Outline(c, grid, dna, sc);
+
+  // ── 2. Sub-cell pixel detail pass (4-tone Kirby sphere shading) ──────────────
+  applyHDPixelDetail(c, dna, grid, hiRes, sc);
+
+  // ── 3. Pixel-art scale — nearest-neighbor, no blurring ───────────────────────
+  targetCtx.imageSmoothingEnabled = false;
+  targetCtx.clearRect(0, 0, displaySize, displaySize);
+  targetCtx.drawImage(tmp, 0, 0, displaySize, displaySize);
+}
+
+// Thin colored outline for 16-bit mode: 2px wide, drawn on the body-facing side,
+// using a very dark shade of the body color instead of pure black.
+function drawHD16Outline(ctx, grid, dna, scale) {
+  function hexToRgb(hex) {
+    const n = parseInt(hex.replace('#',''), 16);
+    return [(n>>16)&255, (n>>8)&255, n&255];
+  }
+  const b = hexToRgb(dna.palette.body);
+  const olColor = `rgb(${Math.max(0,b[0]-80)},${Math.max(0,b[1]-80)},${Math.max(0,b[2]-80)})`;
+  const ow = 2; // outline thickness in pixels
+
+  for (let gy = 0; gy < G; gy++) {
+    for (let gx = 0; gx < G; gx++) {
+      if (grid[gy][gx] !== OL) continue;
+      const bx = gx * scale, by = gy * scale;
+
+      // Body-facing sides: neighbor cell is non-empty and non-OL
+      const fL = gx > 0    && grid[gy][gx-1] > OL;
+      const fR = gx < G-1  && grid[gy][gx+1] > OL;
+      const fU = gy > 0    && grid[gy-1][gx] > OL;
+      const fD = gy < G-1  && grid[gy+1][gx] > OL;
+
+      ctx.fillStyle = olColor;
+      if (fL) ctx.fillRect(bx + scale - ow, by, ow, scale);
+      if (fR) ctx.fillRect(bx,              by, ow, scale);
+      if (fU) ctx.fillRect(bx, by + scale - ow, scale, ow);
+      if (fD) ctx.fillRect(bx,              by, scale, ow);
+      // Isolated outline cell (corners): fill center 2×2
+      if (!fL && !fR && !fU && !fD) ctx.fillRect(bx + scale/2 - 1, by + scale/2 - 1, 2, 2);
+    }
+  }
+}
+
+// Sub-cell pixel-level detail for 16-bit mode — 4-tone Kirby sphere shading.
+// Light source: top-right. BD cells get 4-tone body shading, FC cells get 3-tone
+// face shading. Checkerboard dithering at all tone boundaries.
+function applyHDPixelDetail(tmpCtx, dna, grid, canvasSize, sc) {
+  const { bodyCx, bodyCy, bodyRx, bodyRy, palette } = dna;
+  const cx = bodyCx * sc, cy = bodyCy * sc;
+  const rx = bodyRx * sc, ry = bodyRy * sc;
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.replace('#',''), 16);
+    return [(n>>16)&255, (n>>8)&255, n&255];
+  }
+  function clamp(v) { return Math.max(0, Math.min(255, Math.round(v))); }
+  function shift(rgb, amt) { return [clamp(rgb[0]+amt), clamp(rgb[1]+amt), clamp(rgb[2]+amt)]; }
+
+  // Body: 4 tones (T0=highlight → T3=shadow)
+  const b  = hexToRgb(palette.body);
+  const T0 = shift(b,  90); // near-white highlight
+  const T1 = shift(b,  42); // light
+  const T2 = b;             // base/mid
+  const T3 = shift(b, -55); // shadow
+
+  // Face patch: 3 tones — subtle sphere shading
+  const f  = hexToRgb(palette.face);
+  const F0 = shift(f,  28); // face highlight
+  const F1 = f;             // face base
+  const F2 = shift(f, -22); // face shadow
+
+  const img = tmpCtx.getImageData(0, 0, canvasSize, canvasSize);
+  const d   = img.data;
+
+  // ── Pass A: sphere shading on BD and FC cells ─────────────────────────────────
+  for (let y = 0; y < canvasSize; y++) {
+    for (let x = 0; x < canvasSize; x++) {
+      const gx = Math.floor(x / sc), gy = Math.floor(y / sc);
+      if (gx >= G || gy >= G) continue;
+      const cell = grid[gy][gx];
+      if (cell !== BD && cell !== FC) continue;
+
+      const i = (y * canvasSize + x) * 4;
+      if (d[i+3] < 128) continue;
+
+      const dx    = (x - cx) / rx;
+      const dy    = (y - cy) / ry;
+      const light = dx - dy;           // top-right light: high = bright
+      const ck    = (x + y) % 2;       // 1-px checkerboard
+
+      let tone;
+      if (cell === BD) {
+        // 4-tone body with dither bands
+        if      (light >  0.65)  tone = T0;
+        else if (light >  0.50)  tone = ck === 0 ? T0 : T1;
+        else if (light >  0.25)  tone = T1;
+        else if (light >  0.10)  tone = ck === 0 ? T1 : T2;
+        else if (light > -0.15)  tone = T2;
+        else if (light > -0.30)  tone = ck === 0 ? T2 : T3;
+        else                     tone = T3;
+      } else {
+        // 3-tone face shading — gentler, face is front-facing
+        if      (light >  0.25)  tone = ck === 0 ? F0 : F1;
+        else if (light > -0.10)  tone = F1;
+        else                     tone = ck === 0 ? F1 : F2;
+      }
+
+      d[i]   = tone[0];
+      d[i+1] = tone[1];
+      d[i+2] = tone[2];
+    }
+  }
+
+  // ── Pass B: ES cell = near-white shine above eye; EP top-left = lighter eye ───
+  const ep  = hexToRgb(palette.eyeP);
+  const lep = [Math.round((ep[0]+255)/2), Math.round((ep[1]+255)/2), Math.round((ep[2]+255)/2)];
+  for (let gy = 0; gy < G; gy++) {
+    for (let gx = 0; gx < G; gx++) {
+      const cell = grid[gy][gx];
+      // ES cell: paint near-white (the shine above the eye corner)
+      if (cell === ES) {
+        for (let py2 = gy*sc; py2 < (gy+1)*sc; py2++) {
+          for (let px2 = gx*sc; px2 < (gx+1)*sc; px2++) {
+            const i = (py2 * canvasSize + px2) * 4;
+            d[i] = 252; d[i+1] = 252; d[i+2] = 255; d[i+3] = 255;
+          }
+        }
+      }
+      // EP top-left cell: lighter eye color 2×2 at top-left corner
+      if (cell === EP) {
+        if (gy > 0 && grid[gy-1][gx] === EP) continue;
+        if (gx > 0 && grid[gy][gx-1] === EP) continue;
+        const px = gx * sc, py = gy * sc;
+        for (let sy2 = py; sy2 < py + 2; sy2++) {
+          for (let sx2 = px; sx2 < px + 2; sx2++) {
+            const i = (sy2 * canvasSize + sx2) * 4;
+            d[i] = lep[0]; d[i+1] = lep[1]; d[i+2] = lep[2]; d[i+3] = 255;
+          }
+        }
+      }
+    }
+  }
+
+  tmpCtx.putImageData(img, 0, 0);
+}
+
+function apply16bitDetailPass(tmpCtx, dna, canvasSize) {
+  const { bodyCx, bodyCy, bodyRx, bodyRy } = dna;
+  const sc  = canvasSize / G;
+  const cx  = bodyCx * sc;
+  const cy  = bodyCy * sc;
+  const rx  = bodyRx * sc;
+  const ry  = bodyRy * sc;
+
+  // ── Dithering clásico (checkerboard en zona de transición) ─────────────────
+  const img = tmpCtx.getImageData(0, 0, canvasSize, canvasSize);
+  const d   = img.data;
+  for (let y = 0; y < canvasSize; y++) {
+    for (let x = 0; x < canvasSize; x++) {
+      const i = (y * canvasSize + x) * 4;
+      if (d[i + 3] < 128) continue;
+      const dx   = (x - cx) / rx;
+      const dy   = (y - cy) / ry;
+      const dist = dx * dx + dy * dy;
+      const diag = dx + dy;
+      const checker = (x + y) % 2;
+
+      // Zona sombra (abajo-derecha, dist media): oscurece cada 2px
+      if (dist > 0.4 && diag > 0.35 && checker === 1) {
+        d[i]   = Math.max(0, d[i]   - 55);
+        d[i+1] = Math.max(0, d[i+1] - 55);
+        d[i+2] = Math.max(0, d[i+2] - 55);
+      }
+      // Zona sombra profunda (muy abajo-derecha): siempre oscuro
+      if (dist > 0.7 && diag > 0.6) {
+        d[i]   = Math.max(0, d[i]   - 35);
+        d[i+1] = Math.max(0, d[i+1] - 35);
+        d[i+2] = Math.max(0, d[i+2] - 35);
+      }
+      // Zona highlight (arriba-izquierda, dist media): aclara cada 2px
+      if (dist > 0.15 && dist < 0.55 && diag < -0.25 && checker === 0) {
+        d[i]   = Math.min(255, d[i]   + 40);
+        d[i+1] = Math.min(255, d[i+1] + 40);
+        d[i+2] = Math.min(255, d[i+2] + 40);
+      }
+    }
+  }
+  tmpCtx.putImageData(img, 0, 0);
+
+  // ── Punto especular (brillo duro arriba-izquierda) ──────────────────────────
+  const sx = Math.round(cx - rx * 0.38);
+  const sy = Math.round(cy - ry * 0.52);
+  tmpCtx.save();
+  tmpCtx.globalCompositeOperation = 'source-atop';
+  tmpCtx.fillStyle = 'rgba(255,255,255,0.80)';
+  tmpCtx.fillRect(sx, sy, 2, 2);
+  tmpCtx.fillStyle = 'rgba(255,255,255,0.40)';
+  tmpCtx.fillRect(sx - 1, sy + 2, 1, 1);
+  tmpCtx.fillRect(sx + 2, sy - 1, 1, 1);
+  tmpCtx.fillRect(sx + 2, sy + 2, 1, 1);
+  tmpCtx.restore();
+}
+
+// Central render function — handles all modes
+function renderAll(grid, dna, acc, targetCtx, displaySize, pose='idle', frame=0) {
+  if (renderMode === 'hd') {
+    render16bitTrue(grid, dna, acc, targetCtx, displaySize, pose, frame);
+  } else if (renderMode === 'detailed') {
+    const hiRes = G * 2; // 48×48 internal
+    const tmp = document.createElement('canvas');
+    tmp.width = tmp.height = hiRes;
+    const tmpCtx = tmp.getContext('2d');
+    render(grid, dna.palette, tmpCtx, 2);
+    applyAccessories(tmpCtx, dna, acc, 2);
+    if (acc.outline) applyDetailOutline(tmpCtx, grid, 2);
+    apply16bitDetailPass(tmpCtx, dna, hiRes);
+    apply16bitShading(tmpCtx, dna, hiRes);
+    targetCtx.imageSmoothingEnabled = false;
+    targetCtx.clearRect(0, 0, displaySize, displaySize);
+    targetCtx.drawImage(tmp, 0, 0, displaySize, displaySize);
+  } else {
+    const scale = displaySize / G;
+    render(grid, dna.palette, targetCtx, scale);
+    applyAccessories(targetCtx, dna, acc, scale);
+    if (acc.outline) applyDetailOutline(targetCtx, grid, scale);
+  }
+}
+
+function applyDetailOutline(targetCtx, grid, scale) {
+  targetCtx.fillStyle = '#000000';
+  const detailCells = new Set([FC, CK, MO, SH]);
+  for (let y = 0; y < G; y++) {
+    for (let x = 0; x < G; x++) {
+      if (!detailCells.has(grid[y][x])) continue;
+      for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || nx >= G || ny < 0 || ny >= G) continue;
+        const n = grid[ny][nx];
+        if (n === BD || n === OL) {
+          targetCtx.fillRect(nx * scale, ny * scale, scale, scale);
+        }
+      }
+    }
+  }
 }
 
 function applyAccessories(targetCtx, dna, accessories, scale) {
@@ -1034,8 +1443,8 @@ function generate() {
   const { grid, palette, dna } = generateCharacter();
   const name = randomName();
   state = { grid, palette, name, dna };
-  render(grid, palette, ctx, S);
-  applyAccessories(ctx, dna, getAccessories(), S);
+  const acc = getAccessories();
+  renderAll(grid, dna, acc, ctx, G * S);
   document.getElementById('pet-name').textContent = name;
   document.getElementById('sprite-sheet-section').style.display = 'none';
   document.getElementById('preview-section').style.display = 'flex';
@@ -1094,9 +1503,7 @@ function generateSpriteSheet() {
       const grid = buildCharacterGrid(dna, pose, f);
       const tmp  = document.createElement('canvas');
       tmp.width  = tmp.height = CELL;
-      const tmpCtx = tmp.getContext('2d');
-      render(grid, dna.palette, tmpCtx, FSCALE);
-      applyAccessories(tmpCtx, dna, getAccessories(), FSCALE);
+      renderAll(grid, dna, getAccessories(), tmp.getContext('2d'), CELL, pose, f);
       sCtx.drawImage(tmp, fx, fy);
       sCtx.strokeStyle = '#334'; sCtx.lineWidth = 1;
       sCtx.strokeRect(fx + 0.5, fy + 0.5, CELL - 1, CELL - 1);
@@ -1128,9 +1535,7 @@ function startPreview(pose) {
   previewTimers[pose] = setInterval(() => {
     if (!state.dna) return;
     const grid = buildCharacterGrid(state.dna, pose, frame);
-    const cvsCtx = cvs.getContext('2d');
-    render(grid, state.dna.palette, cvsCtx, PREVIEW_SCALE);
-    applyAccessories(cvsCtx, state.dna, getAccessories(), PREVIEW_SCALE);
+    renderAll(grid, state.dna, getAccessories(), cvs.getContext('2d'), G * PREVIEW_SCALE, pose, frame);
     frame = (frame + 1) % 4;
   }, 1000 / PREVIEW_FPS);
 }
@@ -1153,13 +1558,12 @@ function stopAllPreviews() {
 
 function initPreviewCanvases() {
   if (!state.dna) return;
+  const acc = getAccessories();
   PREVIEW_POSES.forEach(({ pose }) => {
     const cvs = document.getElementById(`preview-canvas-${pose}`);
     cvs.width = cvs.height = G * PREVIEW_SCALE;
     const grid = buildCharacterGrid(state.dna, pose, 0);
-    const cvsCtx = cvs.getContext('2d');
-    render(grid, state.dna.palette, cvsCtx, PREVIEW_SCALE);
-    applyAccessories(cvsCtx, state.dna, getAccessories(), PREVIEW_SCALE);
+    renderAll(grid, state.dna, acc, cvs.getContext('2d'), G * PREVIEW_SCALE, pose, 0);
   });
 }
 
@@ -1193,12 +1597,10 @@ document.getElementById('btn-grid').addEventListener('click', () => {
 // ─── Download ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-download').addEventListener('click', () => {
   if (!state.grid) return;
-  const dlScale = 8; // 192×192 — crisp pixel art
+  const dlSize = mode16bit ? G * 4 : G * 8; // 96px (16bit, small pixels) or 192px
   const tmp = document.createElement('canvas');
-  tmp.width = tmp.height = G * dlScale;
-  const tmpCtx = tmp.getContext('2d');
-  render(state.grid, state.palette, tmpCtx, dlScale);
-  applyAccessories(tmpCtx, state.dna, getAccessories(), dlScale);
+  tmp.width = tmp.height = dlSize;
+  renderAll(state.grid, state.dna, getAccessories(), tmp.getContext('2d'), dlSize);
   const a = document.createElement('a');
   a.download = state.name + '.png';
   a.href = tmp.toDataURL('image/png');
@@ -1216,15 +1618,37 @@ document.getElementById('btn-download-sheet').addEventListener('click', () => {
   a.click();
 });
 
-// ─── Accessories live update ──────────────────────────────────────────────────
-['acc-sunglasses', 'acc-cap'].forEach(id => {
-  document.getElementById(id).addEventListener('change', () => {
+// ─── Animal type filter live update ───────────────────────────────────────────
+document.querySelectorAll('input[name="animal-type"]').forEach(radio => {
+  radio.addEventListener('change', () => {
     if (!state.dna) return;
-    render(state.grid, state.palette, ctx, S);
-    applyAccessories(ctx, state.dna, getAccessories(), S);
+    state.dna.animalType = getAnimalTypeFilter() === 'any' ? state.dna.animalType : getAnimalTypeFilter();
+    state.grid = buildCharacterGrid(state.dna);
+    renderAll(state.grid, state.dna, getAccessories(), ctx, G * S);
     initPreviewCanvases();
   });
 });
+
+// ─── Accessories live update ──────────────────────────────────────────────────
+['acc-sunglasses', 'acc-cap', 'acc-outline'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    if (!state.dna) return;
+    renderAll(state.grid, state.dna, getAccessories(), ctx, G * S);
+    initPreviewCanvases();
+  });
+});
+
+// ─── Render mode toggles ──────────────────────────────────────────────────────
+function setRenderMode(mode) {
+  renderMode = renderMode === mode ? 'normal' : mode;
+  document.getElementById('btn-detailed').classList.toggle('active', renderMode === 'detailed');
+  document.getElementById('btn-16bit').classList.toggle('active', renderMode === 'hd');
+  if (!state.dna) return;
+  renderAll(state.grid, state.dna, getAccessories(), ctx, G * S);
+  initPreviewCanvases();
+}
+document.getElementById('btn-detailed').addEventListener('click', () => setRenderMode('detailed'));
+document.getElementById('btn-16bit').addEventListener('click',    () => setRenderMode('hd'));
 
 // ─── Spacebar shortcut ────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
