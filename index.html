@@ -233,6 +233,8 @@ const TR = 11;      // tear drop (always blue)
 const GD = 12;      // gold (sparkles, halo)
 const OR = 13;      // orange (speed lines)
 const GY = 14;      // gray (fly)
+const AC1 = 15;     // alebrije accent color 1
+const AC2 = 16;     // alebrije accent color 2
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
 const canvas  = document.getElementById('canvas');
@@ -291,6 +293,14 @@ function addOutline(grid) {
   for (const [x, y] of edges) grid[y][x] = OL;
 }
 
+// ─── Alebrije accent color pool (vivid, saturated) ────────────────────────────
+const ALEBRIJE_ACCENTS = [
+  '#E12D39', '#F35627', '#DE911D', '#FADB5F',
+  '#5CB70B', '#27AB83', '#2CB1BC', '#0967D2',
+  '#4C63B6', '#8719E0', '#DA127D', '#F191C1',
+  '#AFF75C', '#62F4EB', '#A368FC', '#FF9466',
+];
+
 // ─── Color palettes — based on Refactoring UI color scales ────────────────────
 const PALETTES = [
   // Cyan (Palette 1 primary)
@@ -321,10 +331,11 @@ const PALETTES = [
   { name: 'ink',       body: '#27241D', shade: '#625D52', face: '#FAF9F7', eyeP: '#27241D', cheek: '#DA4A91' },
 ];
 
-// ─── Name generator ───────────────────────────────────────────────────────────
-const NAME_PRE = ['Mame','Kuro','Hoshi','Mochi','Puchi','Yuki','Tama','Hana','Sora','Kuma',
-                  'Niko','Pika','Doro','Furu','Buri','Miru','Koto','Shiro','Kage','Haru'];
-const NAME_SUF = ['tchi','chi','ko','ru','pi','pu','maru','kichi','bon','nyan','pyon','rin','tan'];
+// ─── Name generator — nombres mexicanos generados por sílabas ─────────────────
+const NAME_PRE = ['Xo','Tla','Quet','Itz','Cit','Mix','Co','Hui','Tep',
+                  'Oc','Mo','Xoch','Tec','Mez','Cha','No','Ate','Cuau','Teo','Ix'];
+const NAME_SUF = ['tl','atl','otl','tzin','ito','ita','ali','xitl',
+                  'zotl','coatl','palco','lote','quil','pilli','tlan','cal'];
 const randomName = () => rnd(NAME_PRE) + rnd(NAME_SUF);
 
 // ─── Character DNA ────────────────────────────────────────────────────────────
@@ -363,12 +374,22 @@ function generateDNA() {
   const hasTail    = chance(0.2);
   const tailOffset = rndInt(0, 3);
 
+  const accentA = rnd(ALEBRIJE_ACCENTS);
+  const accentB = rnd(ALEBRIJE_ACCENTS.filter(c => c !== accentA));
+  const spots   = Array.from({ length: 6 }, () => [
+    rndInt(-Math.round(bodyRx * 0.7), Math.round(bodyRx * 0.7)),
+    rndInt(-Math.round(bodyRy * 0.6), Math.round(bodyRy * 0.6)),
+    rndInt(0, 1),
+  ]);
+  const base = rnd(PALETTES);
+
   return {
     bodyCx, bodyShape, bodyRy, bodyRx, bodyCy, earTopY,
     animalType, earSp, bunnyEarH, bearEarR,
     armStyle, eyeSp, eyeStyle, hasMuzzle, mouthStyle, hasNose,
     hasCheeks, hasMarking, markingStyle, hasBow, hasTail, tailOffset,
-    palette: rnd(PALETTES)
+    spots,
+    palette: { ...base, accent1: accentA, accent2: accentB },
   };
 }
 
@@ -738,6 +759,25 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     });
   }
 
+  // ─ Alebrije accents ──────────────────────────────────────────────────────────
+  // Inner ear color
+  const aleLX = bodyCx - earSp;
+  const aleRX = bodyCx + earSp;
+  if (animalType === 'bunny' && bunnyEarH > 1) {
+    fillEllipse(grid, aleLX, earTopY - bunnyEarH, 0.7, bunnyEarH - 1, AC1);
+    fillEllipse(grid, aleRX, earTopY - bunnyEarH, 0.7, bunnyEarH - 1, AC1);
+  } else if (animalType === 'bear') {
+    pset(grid, aleLX, earTopY, AC1); pset(grid, aleRX, earTopY, AC1);
+  } else if (animalType === 'cat') {
+    pset(grid, aleLX, earTopY - 1, AC1); pset(grid, aleRX, earTopY - 1, AC1);
+  }
+  // Colored spots scattered on body (not on face/eye/cheek cells)
+  dna.spots.forEach(([dx, dy, ci]) => {
+    const px = bodyCx + dx, py = bodyCy + dy;
+    const cell = pget(grid, px, py);
+    if (cell === BD || cell === OL) pset(grid, px, py, ci === 0 ? AC1 : AC2);
+  });
+
   return grid;
 }
 
@@ -765,6 +805,8 @@ function render(grid, palette, targetCtx, scale) {
     [GD]: '#ffcc00',
     [OR]: '#ff7700',
     [GY]: '#888888',
+    [AC1]: palette.accent1,
+    [AC2]: palette.accent2,
   };
 
   targetCtx.clearRect(0, 0, G * scale, G * scale);
