@@ -299,6 +299,10 @@
         <canvas class="preview-canvas" id="preview-canvas-hurt"></canvas>
         <button class="btn-preview" id="btn-preview-hurt">[ ▶ Hurt ]</button>
       </div>
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-hyped"></canvas>
+        <button class="btn-preview" id="btn-preview-hyped">[ ▶ Hyped ]</button>
+      </div>
     </div>
   </div>
 
@@ -332,6 +336,7 @@ const OR = 13;      // orange (speed lines)
 const GY = 14;      // gray (fly)
 const AC1 = 15;     // alebrije accent color 1
 const AC2 = 16;     // alebrije accent color 2
+const LT  = 17;     // lightning (electric blue)
 
 // ─── Canvas setup ─────────────────────────────────────────────────────────────
 const canvas  = document.getElementById('canvas');
@@ -635,6 +640,20 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
         pset(grid, lArmX, armY,   BD); pset(grid, lArmX, armY+1, BD);
         pset(grid, rArmX, armY+1, BD); pset(grid, rArmX+1, armY+1, BD);
       }
+    } else if (pose === 'hyped') {
+      if (frame === 0) { // charging: fists raised near shoulders
+        pset(grid, lArmX, armY-2, BD); pset(grid, lArmX, armY-1, BD);
+        pset(grid, rArmX, armY-2, BD); pset(grid, rArmX, armY-1, BD);
+      } else if (frame === 1) { // building power: arms spread diagonal upward
+        pset(grid, lArmX-1, armY-2, BD); pset(grid, lArmX-2, armY-1, BD);
+        pset(grid, rArmX+1, armY-2, BD); pset(grid, rArmX+2, armY-1, BD);
+      } else if (frame === 2) { // peak power scream: arms thrust high and wide
+        pset(grid, lArmX-1, armY-3, BD); pset(grid, lArmX,   armY-2, BD);
+        pset(grid, rArmX+1, armY-3, BD); pset(grid, rArmX,   armY-2, BD);
+      } else { // sustained: classic flex — arms bent outward
+        pset(grid, lArmX-1, armY-2, BD); pset(grid, lArmX-1, armY-1, BD);
+        pset(grid, rArmX+1, armY-2, BD); pset(grid, rArmX+1, armY-1, BD);
+      }
     } else { // idle
       if      (dna.armStyle === 0) { pset(grid, lArmX, armY,   BD); pset(grid, lArmX, armY+1, BD); }
       else if (dna.armStyle === 1) { pset(grid, lArmX, armY-1, BD); pset(grid, lArmX, armY,   BD); }
@@ -707,6 +726,12 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid,  8 - shift, 20, BD); pset(grid, 10 - shift, 20, BD); pset(grid,  9 - shift, 21, BD);
     pset(grid, 14 + shift, 19, BD); pset(grid, 16 + shift, 19, BD);
     pset(grid, 14 + shift, 20, BD); pset(grid, 16 + shift, 20, BD); pset(grid, 15 + shift, 21, BD);
+  } else if (pose === 'hyped') {
+    // Wide power stance — feet spread apart
+    pset(grid,  7, 19, BD); pset(grid,  9, 19, BD);
+    pset(grid,  7, 20, BD); pset(grid,  9, 20, BD); pset(grid,  8, 21, BD);
+    pset(grid, 15, 19, BD); pset(grid, 17, 19, BD);
+    pset(grid, 15, 20, BD); pset(grid, 17, 20, BD); pset(grid, 16, 21, BD);
   } else {
     pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
     pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
@@ -801,6 +826,20 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
         pset(grid, ex-1, ey+1, EP); pset(grid, ex+1, ey+1, EP);
       });
     }
+  } else if (pose === 'hyped') {
+    if (frame === 0 || frame === 3) {
+      // Intense wide eyes (determined stare)
+      pset(grid, eyeLX-1, eyeY,   EP); pset(grid, eyeLX, eyeY,   EP);
+      pset(grid, eyeLX-1, eyeY+1, EP); pset(grid, eyeLX, eyeY+1, EP);
+      pset(grid, eyeRX,   eyeY,   EP); pset(grid, eyeRX+1, eyeY,   EP);
+      pset(grid, eyeRX,   eyeY+1, EP); pset(grid, eyeRX+1, eyeY+1, EP);
+    } else {
+      // Fierce squint — thick pressed bars (peak power)
+      pset(grid, eyeLX-1, eyeY,   EP); pset(grid, eyeLX, eyeY,   EP); pset(grid, eyeLX+1, eyeY,   EP);
+      pset(grid, eyeLX-1, eyeY+1, EP); pset(grid, eyeLX, eyeY+1, EP);
+      pset(grid, eyeRX-1, eyeY,   EP); pset(grid, eyeRX, eyeY,   EP); pset(grid, eyeRX+1, eyeY,   EP);
+      pset(grid, eyeRX,   eyeY+1, EP); pset(grid, eyeRX+1, eyeY+1, EP);
+    }
   } else {
     // All idle styles: Kirby 2×2 pupil + ES shine at top-left
     // Left eye: 2×2 block at (eyeLX-1..eyeLX, eyeY..eyeY+1)
@@ -834,6 +873,17 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     // grimace: wavy downturned line
     pset(grid, faceCx-2, mY+1, MO); pset(grid, faceCx-1, mY,   MO);
     pset(grid, faceCx,   mY+1, MO); pset(grid, faceCx+1, mY,   MO); pset(grid, faceCx+2, mY+1, MO);
+  } else if (pose === 'hyped') {
+    if (frame === 2) {
+      // Battle cry — wide open mouth
+      pset(grid, faceCx-2, mY,   MO); pset(grid, faceCx-1, mY-1, MO);
+      pset(grid, faceCx,   mY-1, MO); pset(grid, faceCx+1, mY-1, MO); pset(grid, faceCx+2, mY,   MO);
+      pset(grid, faceCx-1, mY+1, MO); pset(grid, faceCx,   mY+1, MO); pset(grid, faceCx+1, mY+1, MO);
+    } else {
+      // Fierce grin — angled upward corners
+      pset(grid, faceCx-2, mY,   MO); pset(grid, faceCx-1, mY-1, MO);
+      pset(grid, faceCx,   mY,   MO); pset(grid, faceCx+1, mY-1, MO); pset(grid, faceCx+2, mY,   MO);
+    }
   } else {
     [
       () => { pset(grid,faceCx-1,mY,MO); pset(grid,faceCx,mY+1,MO); pset(grid,faceCx+1,mY,MO); },
@@ -973,6 +1023,69 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       pset(grid, eyeLX,   eyeY + 3 + dropOffset * 2, TR);
       pset(grid, eyeRX,   eyeY + 2 + dropOffset * 2, TR);
       pset(grid, eyeRX,   eyeY + 3 + dropOffset * 2, TR);
+    }
+  }
+
+  // Hyped: Super Saiyan — orange aura ring + flame tendrils + lightning
+  if (pose === 'hyped') {
+    // ── Spiky ray aura — grows from small to full power ────────────────
+    // len: how many pixels each ray extends outward per frame
+    const len = [2, 3, 5, 3][frame];
+
+    const bTop   = Math.round(bodyCy - bodyRy) - 1; // just above body
+    const bBot   = Math.round(bodyCy + bodyRy) + 1; // just below body
+    const bLeft  = Math.round(bodyCx - bodyRx) - 1; // just left of body
+    const bRight = Math.round(bodyCx + bodyRx) + 1; // just right of body
+
+    // Each ray: [startX, startY, dirX, dirY]
+    // 11 rays covering all directions around the body
+    const rays = [
+      [bodyCx,     bTop,     0, -1], // top straight up
+      [bodyCx - 1, bTop,    -1, -1], // top-left 45°
+      [bodyCx + 1, bTop,     1, -1], // top-right 45°
+      [bLeft,  bodyCy - 1,  -1, -1], // left-up 45°
+      [bLeft,  bodyCy,      -1,  0], // left straight
+      [bLeft,  bodyCy + 1,  -1,  1], // left-down 45°
+      [bRight, bodyCy - 1,   1, -1], // right-up 45°
+      [bRight, bodyCy,       1,  0], // right straight
+      [bRight, bodyCy + 1,   1,  1], // right-down 45°
+      [bodyCx - 1, bBot,    -1,  1], // bottom-left 45°
+      [bodyCx + 1, bBot,     1,  1], // bottom-right 45°
+    ];
+
+    for (const [sx, sy, dx, dy] of rays) {
+      for (let i = 1; i <= len; i++) {
+        const px = sx + dx * i, py = sy + dy * i;
+        if (pget(grid, px, py) === E) pset(grid, px, py, OR);
+        // Extra width pixel at the base of each ray (makes them look thicker/spikier)
+        if (i === 1) {
+          if (pget(grid, px - dy, py + dx) === E) pset(grid, px - dy, py + dx, OR);
+          if (pget(grid, px + dy, py - dx) === E) pset(grid, px + dy, py - dx, OR);
+        }
+      }
+      // Gold sparkle at tip of each ray (frames 1+)
+      if (frame >= 1) {
+        pset(grid, sx + dx * len, sy + dy * len, GD);
+      }
+    }
+
+    // ── Electric lightning bolts at the ends of side rays ─────────────
+    // Left and right bolts: zigzag past the ray tip
+    const lTip  = bLeft  - len;
+    const rTip  = bRight + len;
+    const topTip = bTop  - len;
+
+    if (frame === 1 || frame === 3) {
+      // Side bolts
+      pset(grid, lTip - 1, bodyCy - 1, LT); pset(grid, lTip - 2, bodyCy - 2, LT); pset(grid, lTip - 1, bodyCy - 3, LT);
+      pset(grid, rTip + 1, bodyCy - 1, LT); pset(grid, rTip + 2, bodyCy - 2, LT); pset(grid, rTip + 1, bodyCy - 3, LT);
+    } else if (frame === 2) {
+      // Big bolts left/right + top
+      pset(grid, lTip - 1, bodyCy - 1, LT); pset(grid, lTip - 2, bodyCy - 2, LT);
+      pset(grid, lTip - 1, bodyCy - 3, LT); pset(grid, lTip - 2, bodyCy - 4, LT);
+      pset(grid, rTip + 1, bodyCy - 1, LT); pset(grid, rTip + 2, bodyCy - 2, LT);
+      pset(grid, rTip + 1, bodyCy - 3, LT); pset(grid, rTip + 2, bodyCy - 4, LT);
+      pset(grid, bodyCx - 1, topTip - 1, LT); pset(grid, bodyCx, topTip - 2, LT); pset(grid, bodyCx + 1, topTip - 1, LT);
     }
   }
 
@@ -1407,6 +1520,7 @@ function render(grid, palette, targetCtx, scale) {
     [GY]: '#888888',
     [AC1]: palette.accent1,
     [AC2]: palette.accent2,
+    [LT]:  '#00ddff',
   };
 
   targetCtx.clearRect(0, 0, G * scale, G * scale);
@@ -1463,6 +1577,7 @@ function generateSpriteSheet() {
     { label: 'JUMP',    pose: 'jump',    frames: 4 },
     { label: 'DEAD',    pose: 'dead',    frames: 4 },
     { label: 'HURT',    pose: 'hurt',    frames: 4 },
+    { label: 'HYPED',   pose: 'hyped',   frames: 4 },
   ];
 
   const FSCALE    = 4;
@@ -1523,6 +1638,7 @@ const PREVIEW_POSES = [
   { pose: 'dead',    id: 'dead'    },
   { pose: 'jump',    id: 'jump'    },
   { pose: 'hurt',    id: 'hurt'    },
+  { pose: 'hyped',   id: 'hyped'   },
 ];
 
 const previewTimers = {};  // pose → intervalId | null
@@ -1550,7 +1666,7 @@ function stopAllPreviews() {
   PREVIEW_POSES.forEach(({ pose }) => {
     stopPreview(pose);
     const btn = document.getElementById(`btn-preview-${pose}`);
-    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump', hurt: 'Hurt' };
+    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump', hurt: 'Hurt', hyped: 'Hyped' };
     btn.textContent = `[ ▶ ${labels[pose]} ]`;
     btn.classList.remove('playing');
   });
@@ -1568,7 +1684,7 @@ function initPreviewCanvases() {
 }
 
 PREVIEW_POSES.forEach(({ pose }) => {
-  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump', hurt: 'Hurt' };
+  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump', hurt: 'Hurt', hyped: 'Hyped' };
   document.getElementById(`btn-preview-${pose}`).addEventListener('click', () => {
     const btn = document.getElementById(`btn-preview-${pose}`);
     const isPlaying = previewTimers[pose] != null;
