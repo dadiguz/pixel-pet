@@ -202,6 +202,10 @@
         <canvas class="preview-canvas" id="preview-canvas-jump"></canvas>
         <button class="btn-preview" id="btn-preview-jump">[ ▶ Jump ]</button>
       </div>
+      <div class="preview-item">
+        <canvas class="preview-canvas" id="preview-canvas-hurt"></canvas>
+        <button class="btn-preview" id="btn-preview-hurt">[ ▶ Hurt ]</button>
+      </div>
     </div>
   </div>
 
@@ -488,6 +492,20 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     } else if (pose === 'dead') {
       pset(grid, lArmX-1, armY, BD); pset(grid, lArmX, armY, BD); pset(grid, lArmX, armY+1, BD);
       pset(grid, rArmX+1, armY, BD); pset(grid, rArmX, armY, BD); pset(grid, rArmX, armY+1, BD);
+    } else if (pose === 'hurt') {
+      if (frame === 0) { // flinch: both arms shoot up
+        pset(grid, lArmX, armY-2, BD); pset(grid, lArmX, armY-1, BD);
+        pset(grid, rArmX, armY-2, BD); pset(grid, rArmX, armY-1, BD);
+      } else if (frame === 1) { // impact: arms spread wide and diagonal
+        pset(grid, lArmX-1, armY-1, BD); pset(grid, lArmX-2, armY-2, BD);
+        pset(grid, rArmX+1, armY-1, BD); pset(grid, rArmX+2, armY-2, BD);
+      } else if (frame === 2) { // holding: front arm clutches body, back arm up
+        pset(grid, lArmX, armY-1, BD); pset(grid, lArmX, armY,   BD);
+        pset(grid, rArmX, armY-1, BD); pset(grid, rArmX+1, armY, BD);
+      } else { // recovering: arms drooping
+        pset(grid, lArmX, armY,   BD); pset(grid, lArmX, armY+1, BD);
+        pset(grid, rArmX, armY+1, BD); pset(grid, rArmX+1, armY+1, BD);
+      }
     } else { // idle
       if      (dna.armStyle === 0) { pset(grid, lArmX, armY,   BD); pset(grid, lArmX, armY+1, BD); }
       else if (dna.armStyle === 1) { pset(grid, lArmX, armY-1, BD); pset(grid, lArmX, armY,   BD); }
@@ -536,6 +554,13 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     // frames 1-2: in the air — no feet at ground level
   } else if (pose === 'dead') {
     // no feet when dead
+  } else if (pose === 'hurt') {
+    // feet planted on ground (frames 0,3 normal; frames 1-2 slightly apart for impact)
+    const shift = (frame === 1 || frame === 2) ? 1 : 0;
+    pset(grid,  8 - shift, 19, BD); pset(grid, 10 - shift, 19, BD);
+    pset(grid,  8 - shift, 20, BD); pset(grid, 10 - shift, 20, BD); pset(grid,  9 - shift, 21, BD);
+    pset(grid, 14 + shift, 19, BD); pset(grid, 16 + shift, 19, BD);
+    pset(grid, 14 + shift, 20, BD); pset(grid, 16 + shift, 20, BD); pset(grid, 15 + shift, 21, BD);
   } else {
     pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
     pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
@@ -603,6 +628,19 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP);
       pset(grid, eyeRX,   eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
     }
+  } else if (pose === 'hurt') {
+    if (frame < 2) {
+      // squinting: horizontal bar eyes
+      pset(grid, eyeLX-1, eyeY, EP); pset(grid, eyeLX, eyeY, EP); pset(grid, eyeLX+1, eyeY, EP);
+      pset(grid, eyeRX-1, eyeY, EP); pset(grid, eyeRX, eyeY, EP); pset(grid, eyeRX+1, eyeY, EP);
+    } else {
+      // X eyes (pain)
+      [[eyeLX, eyeY], [eyeRX, eyeY]].forEach(([ex, ey]) => {
+        pset(grid, ex-1, ey-1, EP); pset(grid, ex+1, ey-1, EP);
+        pset(grid, ex,   ey,   EP);
+        pset(grid, ex-1, ey+1, EP); pset(grid, ex+1, ey+1, EP);
+      });
+    }
   } else {
     [
       // style 0: simple dot
@@ -640,6 +678,10 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     pset(grid,faceCx-1,mY+1,MO); pset(grid,faceCx,mY,MO); pset(grid,faceCx+1,mY+1,MO);
   } else if (pose === 'dead') {
     // no mouth when dead
+  } else if (pose === 'hurt') {
+    // grimace: wavy downturned line
+    pset(grid, faceCx-2, mY+1, MO); pset(grid, faceCx-1, mY,   MO);
+    pset(grid, faceCx,   mY+1, MO); pset(grid, faceCx+1, mY,   MO); pset(grid, faceCx+2, mY+1, MO);
   } else {
     [
       () => { pset(grid,faceCx-1,mY,MO); pset(grid,faceCx,mY+1,MO); pset(grid,faceCx+1,mY,MO); },
@@ -759,6 +801,27 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     });
   }
 
+  // Hurt: impact stars (frames 0-1) and pain sweat drops (frames 2-3)
+  if (pose === 'hurt') {
+    if (frame === 0 || frame === 1) {
+      // GD impact stars — burst near front of character
+      const sx = faceCx - 3, sy = eyeY - 3;
+      pset(grid, sx,   sy-1, GD);
+      pset(grid, sx-1, sy,   GD); pset(grid, sx, sy, GD); pset(grid, sx+1, sy, GD);
+      pset(grid, sx,   sy+1, GD);
+      // second smaller star on the other side
+      pset(grid, rArmX+1, armY-2, GD); pset(grid, rArmX+2, armY-3, GD); pset(grid, rArmX+3, armY-2, GD);
+    }
+    if (frame === 2 || frame === 3) {
+      // TR pain drops falling from eyes
+      const dropOffset = frame - 2; // 0 or 1
+      pset(grid, eyeLX,   eyeY + 2 + dropOffset * 2, TR);
+      pset(grid, eyeLX,   eyeY + 3 + dropOffset * 2, TR);
+      pset(grid, eyeRX,   eyeY + 2 + dropOffset * 2, TR);
+      pset(grid, eyeRX,   eyeY + 3 + dropOffset * 2, TR);
+    }
+  }
+
   // ─ Alebrije accents ──────────────────────────────────────────────────────────
   // Inner ear color
   const aleLX = bodyCx - earSp;
@@ -861,6 +924,7 @@ function generateSpriteSheet() {
     { label: 'RUNNING', pose: 'running', frames: 4 },
     { label: 'JUMP',    pose: 'jump',    frames: 4 },
     { label: 'DEAD',    pose: 'dead',    frames: 4 },
+    { label: 'HURT',    pose: 'hurt',    frames: 4 },
   ];
 
   const FSCALE    = 4;
@@ -920,6 +984,7 @@ const PREVIEW_POSES = [
   { pose: 'running', id: 'running' },
   { pose: 'dead',    id: 'dead'    },
   { pose: 'jump',    id: 'jump'    },
+  { pose: 'hurt',    id: 'hurt'    },
 ];
 
 const previewTimers = {};  // pose → intervalId | null
@@ -947,7 +1012,7 @@ function stopAllPreviews() {
   PREVIEW_POSES.forEach(({ pose }) => {
     stopPreview(pose);
     const btn = document.getElementById(`btn-preview-${pose}`);
-    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump' };
+    const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump', hurt: 'Hurt' };
     btn.textContent = `[ ▶ ${labels[pose]} ]`;
     btn.classList.remove('playing');
   });
@@ -964,7 +1029,7 @@ function initPreviewCanvases() {
 }
 
 PREVIEW_POSES.forEach(({ pose }) => {
-  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump' };
+  const labels = { happy: 'Happy', sad: 'Sad', running: 'Running', dead: 'Dead', jump: 'Jump', hurt: 'Hurt' };
   document.getElementById(`btn-preview-${pose}`).addEventListener('click', () => {
     const btn = document.getElementById(`btn-preview-${pose}`);
     const isPlaying = previewTimers[pose] != null;
