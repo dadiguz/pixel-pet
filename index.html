@@ -219,6 +219,9 @@
       <label class="acc-item">
         <input type="checkbox" id="acc-sunglasses"> Gafas de sol
       </label>
+      <label class="acc-item">
+        <input type="checkbox" id="acc-cap"> Gorra
+      </label>
     </div>
   </div>
 
@@ -906,60 +909,74 @@ let state = { grid: null, palette: null, name: '---' };
 function getAccessories() {
   return {
     sunglasses: document.getElementById('acc-sunglasses').checked,
+    cap:        document.getElementById('acc-cap').checked,
   };
 }
 
 function applyAccessories(targetCtx, dna, accessories, scale) {
-  if (!dna || !accessories.sunglasses) return;
+  if (!dna) return;
 
-  const { bodyCx, bodyCy, bodyRy } = dna;
+  const { bodyCx, bodyCy, bodyRx, bodyRy } = dna;
   const faceCx = bodyCx - 1;
   const eyeY   = bodyCy - Math.round(bodyRy * 0.15);
-
-  // Retro blocky geometry — two 4×4 framed lenses flanking faceCx
-  //   [temple][ lL ··· lR ][bridge][ rL ··· rR ][temple]
-  const lL = faceCx - 4;   // left lens: left frame edge
-  const lR = faceCx - 1;   // left lens: right frame edge
-  const rL = faceCx + 1;   // right lens: left frame edge
-  const rR = faceCx + 4;   // right lens: right frame edge
-  const tY = eyeY - 1;     // top frame row
-  const bY = eyeY + 2;     // bottom frame row
-
-  const F  = '#111111';
-  const A1 = dna.palette.accent1;   // vivid top-lens tint
-  const A2 = dna.palette.accent2;   // vivid bottom-lens tint
 
   const px = (x, y, c) => {
     targetCtx.fillStyle = c;
     targetCtx.fillRect(x * scale, y * scale, scale, scale);
   };
 
-  const drawLens = (x1, x2) => {
-    // Top & bottom frame bars
-    for (let x = x1; x <= x2; x++) { px(x, tY, F); px(x, bY, F); }
-    // Left & right frame sides (interior rows only)
-    for (let y = tY + 1; y <= bY - 1; y++) { px(x1, y, F); px(x2, y, F); }
-    // Interior: top row = A1 (vivid), bottom row = A2 (contrast)
-    for (let x = x1 + 1; x <= x2 - 1; x++) {
-      px(x, tY + 1, A1);
-      px(x, bY - 1, A2);
-    }
-    // Shine: 1-px white highlight top-left of interior
-    px(x1 + 1, tY + 1, '#ffffff');
-  };
+  // ── Sunglasses ─────────────────────────────────────────────────────────────
+  if (accessories.sunglasses) {
+    const lL = faceCx - 4;
+    const lR = faceCx - 1;
+    const rL = faceCx + 1;
+    const rR = faceCx + 4;
+    const tY = eyeY - 1;
+    const bY = eyeY + 2;
+    const F  = '#111111';
+    const A1 = dna.palette.accent1;
+    const A2 = dna.palette.accent2;
 
-  drawLens(lL, lR);
-  drawLens(rL, rR);
+    const drawLens = (x1, x2) => {
+      for (let x = x1; x <= x2; x++) { px(x, tY, F); px(x, bY, F); }
+      for (let y = tY + 1; y <= bY - 1; y++) { px(x1, y, F); px(x2, y, F); }
+      for (let x = x1 + 1; x <= x2 - 1; x++) {
+        px(x, tY + 1, A1);
+        px(x, bY - 1, A2);
+      }
+      px(x1 + 1, tY + 1, '#ffffff');
+    };
 
-  // Nose bridge: connects the two frame bars at faceCx
-  px(faceCx, tY, F);
-  px(faceCx, bY, F);
+    drawLens(lL, lR);
+    drawLens(rL, rR);
+    px(faceCx, tY, F); px(faceCx, bY, F);
+    px(lL - 1, eyeY, F); px(lL - 2, eyeY - 1, F);
+    px(rR + 1, eyeY, F); px(rR + 2, eyeY - 1, F);
+  }
 
-  // Temple arms — 2 diagonal pixels angling outward from each lens
-  px(lL - 1, eyeY,     F);
-  px(lL - 2, eyeY - 1, F);
-  px(rR + 1, eyeY,     F);
-  px(rR + 2, eyeY - 1, F);
+  // ── Cap (tiny, perched on top — Timmy Turner style) ───────────────────────
+  if (accessories.cap) {
+    const base = dna.earTopY;           // sits right on top of the head
+    const cx   = bodyCx;               // centered on head
+    const MAIN = dna.palette.accent1;
+    const BRIM = '#111111';
+    const PIP  = '#f5f5f5';
+
+    //  row base-2:   ███    (3 wide — dome top)
+    //  row base-1:  █████   (5 wide — dome body)
+    //  row base:    █████   (5 wide — cap band)
+    //  brim:        ██      (2 px extending left at base row)
+    px(cx - 1, base - 2, MAIN); px(cx, base - 2, MAIN); px(cx + 1, base - 2, MAIN);
+    for (let x = cx - 2; x <= cx + 2; x++) px(x, base - 1, MAIN);
+    for (let x = cx - 2; x <= cx + 2; x++) px(x, base,     MAIN);
+
+    // Brim — short, 2 px, pointing LEFT (front of character)
+    px(cx - 3, base, BRIM);
+    px(cx - 4, base, BRIM);
+
+    // Pip on top
+    px(cx, base - 3, PIP);
+  }
 }
 
 function render(grid, palette, targetCtx, scale) {
@@ -1200,11 +1217,13 @@ document.getElementById('btn-download-sheet').addEventListener('click', () => {
 });
 
 // ─── Accessories live update ──────────────────────────────────────────────────
-document.getElementById('acc-sunglasses').addEventListener('change', () => {
-  if (!state.dna) return;
-  render(state.grid, state.palette, ctx, S);
-  applyAccessories(ctx, state.dna, getAccessories(), S);
-  initPreviewCanvases();
+['acc-sunglasses', 'acc-cap'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    if (!state.dna) return;
+    render(state.grid, state.palette, ctx, S);
+    applyAccessories(ctx, state.dna, getAccessories(), S);
+    initPreviewCanvases();
+  });
 });
 
 // ─── Spacebar shortcut ────────────────────────────────────────────────────────
