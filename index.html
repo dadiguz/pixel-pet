@@ -160,15 +160,66 @@
       color: #445;
       letter-spacing: 0.05em;
     }
+
+    #canvas-area {
+      display: flex;
+      flex-direction: row;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    #accessories-panel {
+      border: 2px solid #334;
+      background: #111122;
+      padding: 14px 16px;
+      min-width: 130px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .acc-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.2em;
+      color: #aa88ff;
+      text-transform: uppercase;
+      border-bottom: 1px solid #334;
+      padding-bottom: 6px;
+    }
+
+    .acc-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #c0c0d0;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .acc-item input[type="checkbox"] {
+      accent-color: #aa88ff;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
   <h1>Pixel Pet</h1>
 
-  <div id="canvas-wrap">
-    <canvas id="canvas"></canvas>
-    <canvas id="grid-overlay"></canvas>
+  <div id="canvas-area">
+    <div id="canvas-wrap">
+      <canvas id="canvas"></canvas>
+      <canvas id="grid-overlay"></canvas>
+    </div>
+    <div id="accessories-panel">
+      <div class="acc-title">Accesorios</div>
+      <label class="acc-item">
+        <input type="checkbox" id="acc-sunglasses"> Gafas de sol
+      </label>
+    </div>
   </div>
 
   <div id="pet-name">---</div>
@@ -333,6 +384,7 @@ const PALETTES = [
   { name: 'sapphire',  body: '#002159', shade: '#2186EB', face: '#B6E0FE', eyeP: '#002159', cheek: '#F191C1' },
   // Charcoal (Warm Grey neutrals)
   { name: 'ink',       body: '#27241D', shade: '#625D52', face: '#FAF9F7', eyeP: '#27241D', cheek: '#DA4A91' },
+  { name: 'slate',     body: '#1F2933', shade: '#3E4C59', face: '#F0F4F8', eyeP: '#1F2933', cheek: '#F35627' },
 ];
 
 // ─── Name generator — nombres mexicanos generados por sílabas ─────────────────
@@ -851,6 +903,65 @@ function generateCharacter() {
 // ─── Renderer ─────────────────────────────────────────────────────────────────
 let state = { grid: null, palette: null, name: '---' };
 
+function getAccessories() {
+  return {
+    sunglasses: document.getElementById('acc-sunglasses').checked,
+  };
+}
+
+function applyAccessories(targetCtx, dna, accessories, scale) {
+  if (!dna || !accessories.sunglasses) return;
+
+  const { bodyCx, bodyCy, bodyRy } = dna;
+  const faceCx = bodyCx - 1;
+  const eyeY   = bodyCy - Math.round(bodyRy * 0.15);
+
+  // Retro blocky geometry — two 4×4 framed lenses flanking faceCx
+  //   [temple][ lL ··· lR ][bridge][ rL ··· rR ][temple]
+  const lL = faceCx - 4;   // left lens: left frame edge
+  const lR = faceCx - 1;   // left lens: right frame edge
+  const rL = faceCx + 1;   // right lens: left frame edge
+  const rR = faceCx + 4;   // right lens: right frame edge
+  const tY = eyeY - 1;     // top frame row
+  const bY = eyeY + 2;     // bottom frame row
+
+  const F  = '#111111';
+  const A1 = dna.palette.accent1;   // vivid top-lens tint
+  const A2 = dna.palette.accent2;   // vivid bottom-lens tint
+
+  const px = (x, y, c) => {
+    targetCtx.fillStyle = c;
+    targetCtx.fillRect(x * scale, y * scale, scale, scale);
+  };
+
+  const drawLens = (x1, x2) => {
+    // Top & bottom frame bars
+    for (let x = x1; x <= x2; x++) { px(x, tY, F); px(x, bY, F); }
+    // Left & right frame sides (interior rows only)
+    for (let y = tY + 1; y <= bY - 1; y++) { px(x1, y, F); px(x2, y, F); }
+    // Interior: top row = A1 (vivid), bottom row = A2 (contrast)
+    for (let x = x1 + 1; x <= x2 - 1; x++) {
+      px(x, tY + 1, A1);
+      px(x, bY - 1, A2);
+    }
+    // Shine: 1-px white highlight top-left of interior
+    px(x1 + 1, tY + 1, '#ffffff');
+  };
+
+  drawLens(lL, lR);
+  drawLens(rL, rR);
+
+  // Nose bridge: connects the two frame bars at faceCx
+  px(faceCx, tY, F);
+  px(faceCx, bY, F);
+
+  // Temple arms — 2 diagonal pixels angling outward from each lens
+  px(lL - 1, eyeY,     F);
+  px(lL - 2, eyeY - 1, F);
+  px(rR + 1, eyeY,     F);
+  px(rR + 2, eyeY - 1, F);
+}
+
 function render(grid, palette, targetCtx, scale) {
   const colorOf = {
     [E]:  null,
@@ -907,6 +1018,7 @@ function generate() {
   const name = randomName();
   state = { grid, palette, name, dna };
   render(grid, palette, ctx, S);
+  applyAccessories(ctx, dna, getAccessories(), S);
   document.getElementById('pet-name').textContent = name;
   document.getElementById('sprite-sheet-section').style.display = 'none';
   document.getElementById('preview-section').style.display = 'flex';
@@ -965,7 +1077,9 @@ function generateSpriteSheet() {
       const grid = buildCharacterGrid(dna, pose, f);
       const tmp  = document.createElement('canvas');
       tmp.width  = tmp.height = CELL;
-      render(grid, dna.palette, tmp.getContext('2d'), FSCALE);
+      const tmpCtx = tmp.getContext('2d');
+      render(grid, dna.palette, tmpCtx, FSCALE);
+      applyAccessories(tmpCtx, dna, getAccessories(), FSCALE);
       sCtx.drawImage(tmp, fx, fy);
       sCtx.strokeStyle = '#334'; sCtx.lineWidth = 1;
       sCtx.strokeRect(fx + 0.5, fy + 0.5, CELL - 1, CELL - 1);
@@ -997,7 +1111,9 @@ function startPreview(pose) {
   previewTimers[pose] = setInterval(() => {
     if (!state.dna) return;
     const grid = buildCharacterGrid(state.dna, pose, frame);
-    render(grid, state.dna.palette, cvs.getContext('2d'), PREVIEW_SCALE);
+    const cvsCtx = cvs.getContext('2d');
+    render(grid, state.dna.palette, cvsCtx, PREVIEW_SCALE);
+    applyAccessories(cvsCtx, state.dna, getAccessories(), PREVIEW_SCALE);
     frame = (frame + 1) % 4;
   }, 1000 / PREVIEW_FPS);
 }
@@ -1024,7 +1140,9 @@ function initPreviewCanvases() {
     const cvs = document.getElementById(`preview-canvas-${pose}`);
     cvs.width = cvs.height = G * PREVIEW_SCALE;
     const grid = buildCharacterGrid(state.dna, pose, 0);
-    render(grid, state.dna.palette, cvs.getContext('2d'), PREVIEW_SCALE);
+    const cvsCtx = cvs.getContext('2d');
+    render(grid, state.dna.palette, cvsCtx, PREVIEW_SCALE);
+    applyAccessories(cvsCtx, state.dna, getAccessories(), PREVIEW_SCALE);
   });
 }
 
@@ -1061,7 +1179,9 @@ document.getElementById('btn-download').addEventListener('click', () => {
   const dlScale = 8; // 192×192 — crisp pixel art
   const tmp = document.createElement('canvas');
   tmp.width = tmp.height = G * dlScale;
-  render(state.grid, state.palette, tmp.getContext('2d'), dlScale);
+  const tmpCtx = tmp.getContext('2d');
+  render(state.grid, state.palette, tmpCtx, dlScale);
+  applyAccessories(tmpCtx, state.dna, getAccessories(), dlScale);
   const a = document.createElement('a');
   a.download = state.name + '.png';
   a.href = tmp.toDataURL('image/png');
@@ -1077,6 +1197,14 @@ document.getElementById('btn-download-sheet').addEventListener('click', () => {
   a.download = (state.name || 'sprite') + '-sheet.png';
   a.href = sc.toDataURL('image/png');
   a.click();
+});
+
+// ─── Accessories live update ──────────────────────────────────────────────────
+document.getElementById('acc-sunglasses').addEventListener('change', () => {
+  if (!state.dna) return;
+  render(state.grid, state.palette, ctx, S);
+  applyAccessories(ctx, state.dna, getAccessories(), S);
+  initPreviewCanvases();
 });
 
 // ─── Spacebar shortcut ────────────────────────────────────────────────────────
