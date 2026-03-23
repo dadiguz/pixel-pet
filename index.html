@@ -245,6 +245,9 @@
         <input type="radio" name="animal-type" value="axolotl"> Ajolote
       </label>
       <label class="acc-item">
+        <input type="radio" name="animal-type" value="raccoon"> Mapache
+      </label>
+      <label class="acc-item">
         <input type="radio" name="animal-type" value="smooth"> Liso
       </label>
     </div>
@@ -459,9 +462,9 @@ function generateDNA() {
   const earTopY = 18 - 2 * bodyRy;
 
   const animalType = earTopY >= 5
-    ? rnd(['bunny','bunny','cat','cat','bear','bear','dog','mouse','axolotl','smooth'])
+    ? rnd(['bunny','bunny','cat','cat','bear','bear','dog','mouse','axolotl','raccoon','smooth'])
     : earTopY >= 3
-    ? rnd(['bear','bear','dog','dog','frog','duck','axolotl','smooth'])
+    ? rnd(['bear','bear','dog','dog','frog','duck','axolotl','raccoon','smooth'])
     : rnd(['frog','frog','dog','duck','smooth']);
 
   const earSp      = Math.round(bodyRx * 0.5);
@@ -470,7 +473,7 @@ function generateDNA() {
   const armStyle   = rndInt(0, 2);
   const eyeSp      = (animalType === 'frog' || animalType === 'axolotl') ? rndInt(3,4) : rndInt(3,4);
   const eyeStyle   = rndInt(0, 3);
-  const hasMuzzle  = animalType !== 'frog' && animalType !== 'axolotl' && chance(0.6);
+  const hasMuzzle  = animalType !== 'frog' && animalType !== 'axolotl' && animalType !== 'raccoon' && chance(0.6);
   const mouthStyle = rndInt(0, 3);
   const hasNose    = !hasMuzzle && animalType !== 'frog' && chance(0.4);
   const hasCheeks  = true; // always — Kirby style
@@ -559,6 +562,10 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   } else if (animalType === 'mouse') {
     fillEllipse(grid, lEarX - 1, earTopY + 1, 2.3, 2.3, BD);
     fillEllipse(grid, rEarX + 1, earTopY + 1, 2.3, 2.3, BD);
+  } else if (animalType === 'raccoon') {
+    // Small rounded ears
+    fillEllipse(grid, lEarX, earTopY, 1.7, 1.7, BD);
+    fillEllipse(grid, rEarX, earTopY, 1.7, 1.7, BD);
   } else if (animalType === 'frog') {
     const muzzY = bodyCy + Math.round(bodyRy * 0.1);
     const muzzL = Math.round(bodyCx - bodyRx) - 3;
@@ -601,13 +608,19 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
         pset(grid, rArmX, armY+droop, BD); pset(grid, rArmX, armY+droop+1, BD);
       }
     } else if (pose === 'running') {
-      // Arms pump hard: opposite to raised leg
-      if (frame % 2 === 0) { // left foot raised → right arm forward/up
-        pset(grid, lArmX, armY+1, BD); pset(grid, lArmX, armY+2, BD); // left arm back/low
-        pset(grid, rArmX, armY-2, BD); pset(grid, rArmX, armY-1, BD); // right arm forward/high
-      } else {               // right foot raised → left arm forward/up
-        pset(grid, lArmX, armY-2, BD); pset(grid, lArmX, armY-1, BD); // left arm forward/high
-        pset(grid, rArmX, armY+1, BD); pset(grid, rArmX, armY+2, BD); // right arm back/low
+      // Arms pump hard: 4 distinct positions for fluid motion
+      if (frame === 0) {        // left foot raised: right arm full forward, left arm full back
+        pset(grid, lArmX-1, armY+2, BD); pset(grid, lArmX,   armY+3, BD); // left arm far back/low
+        pset(grid, rArmX,   armY-3, BD); pset(grid, rArmX,   armY-2, BD); // right arm far forward/high
+      } else if (frame === 1) { // crossing: arms passing mid
+        pset(grid, lArmX, armY+1, BD); pset(grid, lArmX, armY+2, BD);     // left arm back-mid
+        pset(grid, rArmX, armY-1, BD); pset(grid, rArmX, armY,   BD);     // right arm forward-mid
+      } else if (frame === 2) { // right foot raised: left arm full forward, right arm full back
+        pset(grid, lArmX,   armY-3, BD); pset(grid, lArmX,   armY-2, BD); // left arm far forward/high
+        pset(grid, rArmX+1, armY+2, BD); pset(grid, rArmX,   armY+3, BD); // right arm far back/low
+      } else {                  // crossing: arms passing mid (other direction)
+        pset(grid, lArmX, armY-1, BD); pset(grid, lArmX, armY,   BD);     // left arm forward-mid
+        pset(grid, rArmX, armY+1, BD); pset(grid, rArmX, armY+2, BD);     // right arm back-mid
       }
     } else if (pose === 'jump') {
       if (frame === 0) {       // crouch: arms low, winding up
@@ -663,7 +676,7 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   }
 
   // ─ Tail (idle only) ──────────────────────────────────────────────────────────
-  const showTail = (animalType === 'dog' || animalType === 'axolotl') ? pose === 'idle' : (dna.hasTail && pose === 'idle');
+  const showTail = (animalType === 'dog' || animalType === 'axolotl' || animalType === 'raccoon') ? pose === 'idle' : (dna.hasTail && pose === 'idle');
   if (showTail) {
     const ty = bodyCy + dna.tailOffset;
     if (animalType === 'axolotl') {
@@ -680,6 +693,18 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       pset(grid, rArmX + 2, ty - 1, BD);
       pset(grid, rArmX + 2, ty - 2, BD);
       pset(grid, rArmX + 1, ty - 3, BD);
+    } else if (animalType === 'raccoon') {
+      // Cola anillada del mapache: gruesa y curvada hacia arriba
+      pset(grid, rArmX + 1, ty,     BD);
+      pset(grid, rArmX + 2, ty,     BD);
+      pset(grid, rArmX + 2, ty - 1, SH); // anillo oscuro
+      pset(grid, rArmX + 3, ty - 1, SH);
+      pset(grid, rArmX + 3, ty - 2, BD); // anillo claro
+      pset(grid, rArmX + 2, ty - 2, BD);
+      pset(grid, rArmX + 2, ty - 3, SH); // anillo oscuro
+      pset(grid, rArmX + 1, ty - 3, SH);
+      pset(grid, rArmX + 1, ty - 4, BD); // punta
+      pset(grid, rArmX,     ty - 4, BD);
     } else {
       pset(grid, rArmX, ty, BD); pset(grid, rArmX+1, ty-1, BD);
     }
@@ -691,19 +716,24 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       if (grid[y][x] === BD) grid[y][x] = E;
 
   if (pose === 'running') {
-    const leftUp  = frame === 0;
-    const rightUp = frame === 2;
-    // Raised foot: shifted up 2 rows for dramatic kick
-    if (leftUp) {
+    // Left foot: frame 0=UP (kick), frame 1=MID (descending), frames 2-3=DOWN (planted)
+    if (frame === 0) {
       pset(grid,  8, 17, BD); pset(grid, 10, 17, BD);
       pset(grid,  8, 18, BD); pset(grid, 10, 18, BD); pset(grid,  9, 19, BD);
+    } else if (frame === 1) {
+      pset(grid,  8, 18, BD); pset(grid, 10, 18, BD);
+      pset(grid,  8, 19, BD); pset(grid, 10, 19, BD); pset(grid,  9, 20, BD);
     } else {
       pset(grid,  8, 19, BD); pset(grid, 10, 19, BD);
       pset(grid,  8, 20, BD); pset(grid, 10, 20, BD); pset(grid,  9, 21, BD);
     }
-    if (rightUp) {
+    // Right foot: frames 0-1=DOWN (planted), frame 2=UP (kick), frame 3=MID (descending)
+    if (frame === 2) {
       pset(grid, 14, 17, BD); pset(grid, 16, 17, BD);
       pset(grid, 14, 18, BD); pset(grid, 16, 18, BD); pset(grid, 15, 19, BD);
+    } else if (frame === 3) {
+      pset(grid, 14, 18, BD); pset(grid, 16, 18, BD);
+      pset(grid, 14, 19, BD); pset(grid, 16, 19, BD); pset(grid, 15, 20, BD);
     } else {
       pset(grid, 14, 19, BD); pset(grid, 16, 19, BD);
       pset(grid, 14, 20, BD); pset(grid, 16, 20, BD); pset(grid, 15, 21, BD);
@@ -787,6 +817,16 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
     for (let dx = -2; dx <= 2; dx++) {
       if (pget(grid, eyeLX + dx, eyeY + dy) !== E) pset(grid, eyeLX + dx, eyeY + dy, FC);
       if (pget(grid, eyeRX + dx, eyeY + dy) !== E) pset(grid, eyeRX + dx, eyeY + dy, FC);
+    }
+  }
+
+  // Raccoon eye mask — dark patch around each eye
+  if (animalType === 'raccoon' && pose !== 'dead') {
+    for (let dx = -3; dx <= 3; dx++) {
+      for (let dy = -2; dy <= 2; dy++) {
+        if (pget(grid, eyeLX + dx, eyeY + dy) === FC) pset(grid, eyeLX + dx, eyeY + dy, SH);
+        if (pget(grid, eyeRX + dx, eyeY + dy) === FC) pset(grid, eyeRX + dx, eyeY + dy, SH);
+      }
     }
   }
 
@@ -989,12 +1029,12 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
   // Running: horizontal speed lines behind body (right side — character faces left)
   if (pose === 'running') {
     const baseX = rArmX + 1;
-    const lineYs = [bodyCy - 1, bodyCy + 1, bodyCy + 3];
+    const lineYs = [bodyCy - 2, bodyCy, bodyCy + 2, bodyCy + 4];
     const lenTable = [
-      [3, 1, 3],
-      [1, 3, 1],
-      [3, 1, 3],
-      [1, 3, 1],
+      [4, 1, 3, 1],  // frame 0: burst on right foot strike
+      [2, 3, 1, 2],  // frame 1: fading
+      [3, 1, 4, 1],  // frame 2: burst on left foot strike
+      [1, 2, 2, 3],  // frame 3: fading
     ];
     const xShift = frame % 2;
     lineYs.forEach((ly, i) => {
@@ -1003,6 +1043,14 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
         pset(grid, baseX + xShift + dx, ly, OR);
       }
     });
+    // Dust puff at foot strike
+    if (frame === 0) { // right foot just planted
+      pset(grid, 13, 22, SH); pset(grid, 14, 22, SH); pset(grid, 15, 22, SH); pset(grid, 16, 22, SH);
+      pset(grid, 12, 21, SH); pset(grid, 17, 21, SH);
+    } else if (frame === 2) { // left foot just planted
+      pset(grid,  7, 22, SH); pset(grid,  8, 22, SH); pset(grid,  9, 22, SH); pset(grid, 10, 22, SH);
+      pset(grid,  6, 21, SH); pset(grid, 11, 21, SH);
+    }
   }
 
   // Hurt: impact stars (frames 0-1) and pain sweat drops (frames 2-3)
@@ -1111,6 +1159,10 @@ function buildCharacterGrid(dna, pose = 'idle', frame = 0) {
       pset(grid, lEdge-2, gBase + o - 2, AC1);
       pset(grid, rEdge+2, gBase + o - 2, AC1);
     });
+  } else if (animalType === 'raccoon') {
+    // Orejita interna con color acento
+    pset(grid, aleLX, earTopY, AC1);
+    pset(grid, aleRX, earTopY, AC1);
   }
   // Colored spots scattered on body (not on face/eye/cheek cells)
   dna.spots.forEach(([dx, dy, ci]) => {
